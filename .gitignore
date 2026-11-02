@@ -1,0 +1,32 @@
+/build/
+/dist/
+/.vs/
+/artifacts/
+/output/
+/tmp/
+/.idea/
+/.vscode/
+CMakeUserPresets.json
+
+# Local state, credentials and Python caches
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+*.user
+*.user.*
+*.log
+
+# Reproducible model intermediates and duplicate archives
+/assets/sedan/source/derived/
+/assets/sedan/source/Sedan-rigged.glb
+/assets/sedan/source/structure.json
+/assets/source/structure.json
+/design/v1/*.zip
+
+# Downloaded research caches; retain reports and source URL records
+/research/images/
+/research/vehicle3d/
+/research/sources/*
+!/research/sources/image-sources.json

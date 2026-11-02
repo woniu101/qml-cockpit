@@ -1,0 +1,18 @@
+* text=auto eol=lf
+*.qml text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+*.md text eol=lf whitespace=-blank-at-eol
+*.json text eol=lf
+*.cmake text eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.glb binary
+*.mesh binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.wav binary
+*.hdr binary
+assets/source/*.txt -whitespace
