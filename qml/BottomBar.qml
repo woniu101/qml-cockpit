@@ -31,7 +31,8 @@ Item {
     }
     UiButton { x: 1009; y: 38; width: 46; height: 48; iconName: "chevron-left"; quiet: true; onClicked: Vehicle.passengerTemperature -= 0.5 }
     UiButton { x: 1155; y: 38; width: 46; height: 48; iconName: "chevron-right"; quiet: true; onClicked: Vehicle.passengerTemperature += 0.5 }
-    Icon { x: 1275; y: 42; name: "volume"; tint: Theme.muted }
-    SoftSlider { objectName: "volumeSlider"; x: 1312; y: 35; width: 129; height: 44; from: 0; to: 100; value: Vehicle.volume; onMoved: Vehicle.volume = value }
+    UiButton { objectName:"audioOutputShortcut"; x:1265; y:27; width:44; height:60; quiet:true; iconName:PhoneAudio.active?"bluetooth":"volume"; foreground:Theme.muted; caption:PhoneAudio.active?"手机音乐连接与音量说明":"本地音乐输出与音量"; onClicked:shell.openPopup(PhoneAudio.active?"bluetooth":"audio") }
+    SoftSlider { objectName: "volumeSlider"; x: 1312; y: 35; width: 129; height: 44;visible:!PhoneAudio.active; from: 0; to: 100; value: Vehicle.volume; enabled:AudioOutputs.available; onMoved: Vehicle.volume = value }
+    Label {x:1312;y:47;width:129;text:"手机调音量";visible:PhoneAudio.active;font.pixelSize:16;color:Theme.muted;horizontalAlignment:Text.AlignHCenter}
     UiButton { x: 1480; y: 27; width: 60; height: 60; iconName: "apps"; quiet: true; caption: "全部应用"; onClicked: shell.openPopup("apps") }
 }

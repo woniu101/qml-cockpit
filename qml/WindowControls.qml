@@ -44,7 +44,7 @@ Item {
     SoftSlider {
         id: openingSlider
         objectName: "windowOpeningSlider"; x: 14; y: 349; width: parent.width-28; height: 47
-        from: 0; to: 100; stepSize: 1; value: control.actual
+        from: 0; to: 100; stepSize: 1; value: pressed&&Vehicle.externalMode?control.target:control.actual
         property int dragIndex: 0
         onPressedChanged: {
             if(pressed){dragIndex=control.index;Vehicle.beginWindowDrag(dragIndex)}

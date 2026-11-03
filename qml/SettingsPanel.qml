@@ -17,6 +17,7 @@ Item {
             App.Label { text: "3D 画质"; font.pixelSize: 22 }
             Row { spacing: 14; Repeater {model:[{key:"standard",title:"标准"},{key:"high",title:"高画质"}];UiButton {required property var modelData;objectName:"quality_"+modelData.key;width:253;height:51;text:modelData.title;selected:Vehicle.quality===modelData.key;onClicked:Vehicle.quality=modelData.key} } }
             UiButton { width:parent.width;height:56;text:"驾驶演示与车速";iconName:"car";onClicked:settings.shell.openPopup("driving") }
+            UiButton { width:parent.width;height:56;text:"车辆数据来源";iconName:"layers";onClicked:settings.shell.openPopup("source") }
             UiButton { width:parent.width;height:56;text:"自动演示控制";iconName:"play";onClicked:settings.shell.openPopup("demo") }
             UiButton { width:parent.width;height:56;text:"全屏 / 窗口";onClicked:{settings.shell.toggleFullScreen();settings.shell.popup=""} }
             UiButton {objectName:"resetButton";width:parent.width;height:56;text:"恢复初始状态";iconName:"refresh";onClicked:{if(settings.shell.demoRunning)settings.shell.toggleDemo();Vehicle.reset();settings.shell.showPage(0)} }

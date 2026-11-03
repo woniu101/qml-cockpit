@@ -21,6 +21,8 @@ ApplicationWindow {
     property string greetingText: "下午好，林先生"
     property bool testMode: false
     property double ignoreDemoInputUntil: 0
+    property bool pendingDrivingView: false
+    property bool sourceWasReady: false
     readonly property bool demoRunning: demo.running
     readonly property bool demoPaused: demo.paused
     readonly property int demoStep: demo.step
@@ -38,7 +40,7 @@ ApplicationWindow {
     function openPopup(name){popup=name}
     function inspectPart(part){showPage(2);vehiclePage.inspectPart(part)}
     function navigateTo(destination){if(Vehicle.startNavigation(destination)){page=1;popup=""}}
-    function enterDriving(){if(Vehicle.gear!=="D"||Vehicle.speed<=0)Vehicle.startDriving();if(Vehicle.gear==="D"&&Vehicle.speed>0)showPage(4)}
+    function enterDriving(){pendingDrivingView=true;if(Vehicle.gear!=="D"||Vehicle.speed<=0)Vehicle.startDriving();if(Vehicle.externalReady&&Vehicle.gear==="D"&&Vehicle.speed>0){pendingDrivingView=false;showPage(4)}}
     function toggleFullScreen(){visibility=visibility===Window.FullScreen?Window.Windowed:Window.FullScreen}
     function toggleDemo(){if(demo.running)demo.stop();else demo.start()}
     function demoPause(){demo.paused=!demo.paused}
@@ -60,9 +62,11 @@ ApplicationWindow {
     DemoController { id: demo; shell: shell }
     Connections {
         target: Vehicle
-        function onToast(message,kind){shell.notify(message,kind)}
+        function onToast(message,kind){if(kind==="warning")shell.pendingDrivingView=false;shell.notify(message,kind)}
+        function onChanged(){if(shell.pendingDrivingView&&Vehicle.externalReady&&Vehicle.gear==="D"&&Vehicle.speed>0){shell.pendingDrivingView=false;shell.showPage(4)}}
         function onVisualReset(){shell.toastMessage="";shell.feedbackQueue=[];toastTimer.stop()}
     }
+    Connections { target: VehicleConnection; function onStatusChanged(){if(shell.sourceWasReady&&Vehicle.externalMode&&!VehicleConnection.ready){shell.pendingDrivingView=false;shell.notify("车辆数据连接中断，控制已暂停","warning")}shell.sourceWasReady=VehicleConnection.ready} }
     Item {
         id: canvas; objectName: "designCanvas"
         width: 1600; height: 900; anchors.centerIn: parent; scale: Math.min(shell.width/1600,shell.height/900)

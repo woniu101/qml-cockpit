@@ -13,7 +13,7 @@ Item {
         Icon { anchors.centerIn: parent; visible: Vehicle.warningCount===0; name: Vehicle.busy?"refresh":Vehicle.notifications.length>0?"bell":"check"; width: 22; height: 22; tint: Theme.green }
     }
     App.Label { objectName: "notificationStatus"; x: 80; y: 99; width: 455; text: Vehicle.statusTitle; font.pixelSize: 24 }
-    App.Label { x: 80; y: 141; text: (Vehicle.parked?"驻车":"行驶演示")+" · 电量 "+Vehicle.batteryPercent.toFixed(0)+"% · 续航 "+Vehicle.rangeKm+" km"; font.pixelSize: 17; color: Theme.muted }
+    App.Label { objectName: "notificationEnergy"; x: 80; y: 141; text: (Vehicle.parked?"驻车":"行驶演示")+" · 电量 "+App.EnergyVisual.socText+(App.EnergyVisual.realSystem?" · 估算续航 ":" · 续航 ")+App.EnergyVisual.rangeText; font.pixelSize: 17; color: Theme.muted }
     Flickable {
         x: 30; y: 192; width: 520; height: 338; clip: true
         contentHeight: entries.height; boundsBehavior: Flickable.StopAtBounds

@@ -2,6 +2,7 @@ import QtQuick
 Item {
     id: driving
     required property var shell
+    enabled: Vehicle.externalReady
     Label { x: 30; y: 27; text: "驾驶演示"; font.pixelSize: 28 }
     Label { x: 30; y: 91; text: Vehicle.gear+" 挡"; font.pixelSize: 43 }
     Label { x: 240; y: 101; text: Vehicle.speed+" km/h"; font.pixelSize: 31 }

@@ -5,14 +5,27 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QHash>
+#include <QSet>
 #include <QPointF>
 #include <QtQml/qqmlregistration.h>
 #include <array>
+#include "VehicleLink.h"
+#include "SystemStatus.h"
 
 class VehicleState : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(Vehicle)
     QML_SINGLETON
+    Q_PROPERTY(bool externalMode READ externalMode WRITE setExternalMode NOTIFY sourceChanged)
+    Q_PROPERTY(bool externalReady READ externalReady NOTIFY sourceChanged)
+    Q_PROPERTY(QString sourceMode READ sourceMode WRITE setSourceMode NOTIFY sourceChanged)
+    Q_PROPERTY(bool systemMode READ systemMode NOTIFY sourceChanged)
+    Q_PROPERTY(bool systemFallback READ systemFallback NOTIFY sourceChanged)
+    Q_PROPERTY(bool energyReady READ energyReady NOTIFY sourceChanged)
+    Q_PROPERTY(bool batteryKnown READ batteryKnown NOTIFY sourceChanged)
+    Q_PROPERTY(bool chargeControlAvailable READ chargeControlAvailable NOTIFY sourceChanged)
+    Q_PROPERTY(bool chargePowerKnown READ chargePowerKnown NOTIFY sourceChanged)
+    Q_PROPERTY(QString energySourceText READ energySourceText NOTIFY sourceChanged)
     Q_PROPERTY(double driverTemperature READ driverTemperature WRITE setDriverTemperature NOTIFY changed)
     Q_PROPERTY(double passengerTemperature READ passengerTemperature WRITE setPassengerTemperature NOTIFY changed)
     Q_PROPERTY(int fan READ fan WRITE setFan NOTIFY changed)
@@ -91,8 +104,22 @@ class VehicleState : public QObject {
     Q_PROPERTY(int hatchMotionDuration READ hatchMotionDuration CONSTANT)
     Q_PROPERTY(int hoodMotionDuration READ hoodMotionDuration CONSTANT)
 public:
-    explicit VehicleState(QObject *parent=nullptr);
+    explicit VehicleState(QObject *parent=nullptr,SystemStatus *system=nullptr);
     ~VehicleState() override;
+    bool externalMode() const;
+    bool externalReady() const;
+    void setExternalMode(bool);
+    QString sourceMode() const{return m_sourceMode;}
+    bool systemMode() const{return m_sourceMode=="system";}
+    bool systemFallback() const{return systemMode()&&m_systemFallback;}
+    bool energyReady() const;
+    bool batteryKnown() const;
+    bool chargeControlAvailable() const{return !systemMode()||m_systemFallback;}
+    bool chargePowerKnown() const{return chargeControlAvailable();}
+    QString energySourceText() const;
+    void setSourceMode(const QString&);
+    SystemStatus *systemStatus() const{return m_system;}
+    VehicleLink *connection() const{return m_link;}
     double driverTemperature() const { return m_driver; }
     double passengerTemperature() const { return m_passenger; }
     int fan() const { return m_fan; }
@@ -149,7 +176,7 @@ public:
     bool charging() const { return m_charging; }
     QString chargeStatus() const;
     int chargeTarget() const { return m_chargeTarget; }
-    double chargePower() const { return m_charging?55.0:0; }
+    double chargePower() const { return !chargePowerKnown()?0:externalMode()?m_remoteChargePower:(m_charging?55.0:0); }
     int chargeMinutes() const;
     QString scene() const { return m_scene; }
     int volume() const { return m_volume; }
@@ -197,6 +224,18 @@ public:
     void updatePosition(double);
     void updateDuration(double);
     void updateMediaStatus(const QString&,const QString &error=QString());
+    bool demoActive() const{return m_demoActive;}
+    void mergeMusicTracks(const QVariantList&);
+    void updateTrackProperties(const QString &url,const QVariantMap &properties);
+    void restoreMusicPosition(const QString &url,qint64 position);
+    void removeMusicTrack(int index);
+    QStringList playQueue() const;
+    QString queueLabel() const{return m_queueLabel;}
+    bool hasExplicitQueue() const{return m_explicitQueue;}
+    void setPlayQueue(const QStringList &urls,const QString &label);
+    void replaceMusicTrack(int index,const QVariantMap &row);
+    Q_INVOKABLE void moveQueueTrack(const QString &url,int direction);
+    Q_INVOKABLE void removeQueueTrack(const QString &url);
     Q_INVOKABLE void setWindow(int index,int opening);
     Q_INVOKABLE void beginWindowDrag(int index);
     Q_INVOKABLE void previewWindow(int index,int opening);
@@ -234,6 +273,7 @@ public:
     Q_INVOKABLE void setDemoActive(bool);
     Q_INVOKABLE void reset();
 signals:
+    void sourceChanged();
     void changed();
     void positionChanged();
     void windowProgressChanged();
@@ -243,13 +283,37 @@ signals:
     void toast(const QString &message,const QString &kind=QStringLiteral("success"));
     void seekRequested(qint64);
     void mediaReloadRequested();
+    void queueChanged();
 private:
+    bool externalCommand(const QString&,const QJsonObject&,const QString&);
+    void applyExternal(const QJsonObject&);
+    void externalResult(const QString&,const QJsonObject&,const QString&,const QString&);
+    void applySystemPower();
+    QVariantMap energySnapshot() const;
+    void restoreEnergy(const QVariantMap&);
+    bool systemEnergyCommand();
+    SystemStatus *m_system=nullptr;
+    QString m_sourceMode="internal";
+    bool m_systemFallback=false,m_systemHadSoc=false;
+    QVariantMap m_energyBeforeSystem;
+    VehicleLink *m_link=nullptr;
+    QVariantMap m_localBeforeExternal;
+    std::array<bool,4> m_remoteDragging{};
+    std::array<int,4> m_remoteDragTargets{};
+    bool m_remoteTripValid=false;
+    QString m_remoteSession;
+    double m_remoteForward=0;
+    double m_remoteChargePower=0;
     struct Motion { quint64 serial; QString label; };
     struct Route { QString name; double km=12; int minutes=22; QVariantList points; QStringList streets,turns; };
     struct Location { QPointF point; double heading=0,remaining=0,total=1; int leg=0; };
     static Route makeRoute(const QString&);
     Location routeLocation() const;
     bool canDrive();
+    int musicIndex(const QString &url) const;
+    bool musicAvailable(int index) const;
+    void activateMusic(int index,bool recordHistory);
+    void resetMusicHistory();
     void beginMotion(const QString&,const QString&,const QString&,int);
     void tickWindows();
     void setWindowInternal(int,int,bool);
@@ -282,6 +346,11 @@ private:
     bool m_plugged=false,m_charging=false;
     int m_chargeTarget=90;
     QVariantList m_tracks;
+    QStringList m_queueUrls,m_musicHistory;
+    QSet<QString> m_shuffleVisited;
+    QString m_queueLabel=QStringLiteral("全部歌曲");
+    int m_historyCursor=-1;
+    bool m_explicitQueue=false;
     QString m_playMode="all",m_mediaStatus="loading",m_mediaError;
     double m_position=0,m_duration=64000;
     double m_savedDriver=22,m_savedPassenger=22;

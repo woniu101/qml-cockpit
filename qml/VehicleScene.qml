@@ -10,11 +10,15 @@ Item {
     property bool activeView: true
     property bool drivingMode: false
     property bool animationPaused: false
+    property string energyDetail: "ambient"
+    property point framingOffset: Qt.point(0,0)
+    readonly property bool energyEffectsVisible: energyDetail==="detailed" && !interior && !drivingMode
+    readonly property bool energyFlowRunning: EnergyVisual.flow && energyEffectsVisible && scene.ready && scene.activeView && scene.visible && !scene.animationPaused
     property real travelMeters: 0
     readonly property real wheelAngle: travelMeters/2.345*360
     readonly property real roadOffset: ((travelMeters*100)%300+300)%300
     FrameAnimation {
-        running: scene.drivingMode && scene.activeView && scene.visible && scene.ready && !scene.animationPaused && Vehicle.speed>0 && (Vehicle.gear==="D"||Vehicle.gear==="R")
+        running: Vehicle.energyReady && scene.drivingMode && scene.activeView && scene.visible && scene.ready && !scene.animationPaused && Vehicle.speed>0 && (Vehicle.gear==="D"||Vehicle.gear==="R")
         onTriggered: scene.travelMeters+=Vehicle.speed/3.6*frameTime*(Vehicle.gear==="R"?-1:1)
     }
     property int presentedFrames: 0
@@ -29,7 +33,7 @@ Item {
     property real portAngle: Vehicle.portOpen?-85:0
     Behavior on portAngle { enabled: scene.motionEnabled && scene.visible; NumberAnimation { duration: 600; easing.type: Easing.InOutCubic } }
     readonly property vector3d selectionPoint: {
-        const change=scene.presentedFrames+scene.width+scene.height+scene.yaw+scene.elevation+scene.distance+car.doorLF+car.doorRF+car.doorLR+car.doorRR+car.hatch+car.hood
+        const change=scene.presentedFrames+scene.width+scene.height+scene.framingOffset.x+scene.framingOffset.y+scene.yaw+scene.elevation+scene.distance+car.doorLF+car.doorRF+car.doorLR+car.doorRR+car.hatch+car.hood
         return viewport.mapFrom3DScene(car.markerPosition(selectedPart))
     }
     readonly property bool selectedFacing: {
@@ -48,6 +52,7 @@ Item {
     readonly property real windowLF: car.windowLF
     signal tapped()
     signal partTapped(string part)
+    signal interacted()
     function partAt(px, py) {
         const hit=viewport.pick(px, py)
         return hit.objectHit ? hit.objectHit.objectName : ""
@@ -89,7 +94,7 @@ Item {
 
     // Soft ground contact stays behind the transparent 3D surface.
     Image {
-        x: parent.width*0.13; y: parent.height*0.57
+        x: parent.width*0.13+scene.framingOffset.x; y: parent.height*0.57+scene.framingOffset.y
         width: parent.width*0.74; height: parent.height*0.29
         source: "qrc:/ui/ground-shadow.svg"
         opacity: scene.interior || scene.drivingMode ? 0 : 0.65
@@ -108,11 +113,22 @@ Item {
             probeExposure: 1.2
             tonemapMode: SceneEnvironment.TonemapModeAces
         }
-        camera: scene.interior ? cabinCamera : exteriorCamera
+        camera: scene.interior ? cabinCamera : (scene.framingOffset.x!==0 || scene.framingOffset.y!==0) ? framedCamera : exteriorCamera
         Node {
             y: 63
             eulerRotation: Qt.vector3d(scene.elevation, scene.yaw, 0)
             PerspectiveCamera { id: exteriorCamera; z: scene.distance; fieldOfView: 30; clipNear: 1; clipFar: 3000 }
+            // Shift the projection without changing scale, orbit, picking or the viewport's clip bounds.
+            FrustumCamera {
+                id: framedCamera
+                z: scene.distance; clipNear: exteriorCamera.clipNear; clipFar: exteriorCamera.clipFar
+                readonly property real halfHeight: clipNear*Math.tan(exteriorCamera.fieldOfView*Math.PI/360)
+                readonly property real halfWidth: halfHeight*scene.width/Math.max(1,scene.height)
+                readonly property real centerX: -2*halfWidth*scene.framingOffset.x/Math.max(1,scene.width)
+                readonly property real centerY: 2*halfHeight*scene.framingOffset.y/Math.max(1,scene.height)
+                left: -halfWidth+centerX; right: halfWidth+centerX
+                top: halfHeight+centerY; bottom: -halfHeight+centerY
+            }
         }
         PerspectiveCamera { id: cabinCamera; position: Qt.vector3d(0, 133, -65); eulerRotation: Qt.vector3d(-15, 180, 0); fieldOfView: 85; clipNear: 0.5; clipFar: 1500 }
         DirectionalLight { eulerRotation: Qt.vector3d(-35,-35,0); brightness: 1.15; ambientColor: "#79867e"; castsShadow: true; shadowFactor: 55; shadowFilter: 15; shadowBias: 1.5; shadowMapQuality: Light.ShadowMapQualityHigh }
@@ -157,11 +173,8 @@ Item {
                 Model { required property int index; source: "#Sphere"; x: 0.8; y: Math.cos(index*2*Math.PI/5)*2.2; z: Math.sin(index*2*Math.PI/5)*2.2; scale: Qt.vector3d(0.011,0.011,0.011); materials: PrincipledMaterial { baseColor: "#809a91"; metalness: 0.7; roughness: 0.3 } }
             }
         }
-        Node {
-            visible: Vehicle.plugged
-            Model { source: "#Cylinder"; position: Qt.vector3d(108,96,-221); eulerRotation.z: 90; scale: Qt.vector3d(0.07,0.28,0.07); materials: PrincipledMaterial { baseColor: "#39483e"; roughness: 0.6 } }
-            Model { source: "#Cylinder"; position: Qt.vector3d(122,51,-221); scale: Qt.vector3d(0.025,0.85,0.025); materials: PrincipledMaterial { baseColor: "#29372e"; roughness: 0.8 } }
-        }
+        ChargingField { active: scene.energyFlowRunning; energyVisible: Vehicle.plugged && scene.energyEffectsVisible }
+        ChargingConnector { objectName: "chargingConnector"; plugged: Vehicle.plugged && !scene.interior; charging: Vehicle.charging; flowEnabled: scene.energyEffectsVisible; live: Vehicle.energyReady && scene.activeView && scene.visible && !scene.animationPaused && !scene.drivingMode }
         Sedan {
             id: car
             objectName: "sedanModel"
@@ -195,7 +208,7 @@ Item {
     Timer { interval: 6000; running: scene.activeView && scene.visible && !scene.ready && !scene.renderFailed; onTriggered: scene.renderFailed=true }
     Rectangle {
         anchors.fill: parent; visible: !scene.ready; color: Theme.secondary; radius: 20
-        Image { anchors.fill: parent; visible: scene.renderFailed || !vehicleAssetsAvailable; source: "qrc:/ui/vehicle-pearl.png"; fillMode: Image.PreserveAspectFit; opacity: 0.65 }
+        Image { x: scene.framingOffset.x; y: scene.framingOffset.y; width: parent.width; height: parent.height; visible: scene.renderFailed || !vehicleAssetsAvailable; source: "qrc:/ui/vehicle-pearl.png"; fillMode: Image.PreserveAspectFit; opacity: 0.65 }
         Column { anchors.centerIn: parent; spacing: 14
             Icon { anchors.horizontalCenter: parent.horizontalCenter; name: scene.renderFailed?"car":"refresh"; tint: Theme.green; width: 38; height: 38
                 RotationAnimation on rotation { from: 0; to: 360; duration: 1000; loops: Animation.Infinite; running: scene.activeView && !scene.ready && !scene.renderFailed }
@@ -213,7 +226,7 @@ Item {
         property real baseYaw
         property real baseElevation
         property bool moved: false
-        onPressed: mouse => { focusAnimation.stop();start=Qt.point(mouse.x,mouse.y);baseYaw=scene.yaw;baseElevation=scene.elevation;moved=false }
+        onPressed: mouse => { scene.interacted();focusAnimation.stop();start=Qt.point(mouse.x,mouse.y);baseYaw=scene.yaw;baseElevation=scene.elevation;moved=false }
         onPositionChanged: mouse => {
             if(!pressed || scene.interior)return
             if(Math.abs(mouse.x-start.x)+Math.abs(mouse.y-start.y)>5)moved=true
@@ -221,19 +234,19 @@ Item {
             scene.elevation=Math.max(-65,Math.min(5,baseElevation-(mouse.y-start.y)*0.18))
         }
         onReleased: mouse => { if(!moved){scene.partTapped(scene.partAt(mouse.x,mouse.y));scene.tapped()} }
-        onWheel: wheel => { focusAnimation.stop();if(!scene.interior)scene.distance=Math.max(520,Math.min(1100,scene.distance-wheel.angleDelta.y*0.55));wheel.accepted=true }
+        onWheel: wheel => { scene.interacted();focusAnimation.stop();if(!scene.interior)scene.distance=Math.max(520,Math.min(1100,scene.distance-wheel.angleDelta.y*0.55));wheel.accepted=true }
         onDoubleClicked: scene.resetView()
         onCanceled: moved=true
     }
     PinchHandler {
         target: null; enabled: scene.interactive && scene.ready && !scene.interior
         property real initialDistance: 650
-        onActiveChanged: if(active){focusAnimation.stop();initialDistance=scene.distance}
+        onActiveChanged: if(active){scene.interacted();focusAnimation.stop();initialDistance=scene.distance}
         onActiveScaleChanged: if(active)scene.distance=Math.max(520,Math.min(1100,initialDistance/activeScale))
     }
     Item {
         objectName: "selectedPartMarker"
-        visible: scene.ready && !scene.interior && scene.selectedPart!=="" && scene.selectedFacing && scene.selectionPoint.z>0
+        visible: scene.ready && !scene.interior && scene.selectedPart!=="" && scene.selectedFacing && scene.selectionPoint.z>0 && scene.selectionPoint.x>=0 && scene.selectionPoint.x<=scene.width && scene.selectionPoint.y>=0 && scene.selectionPoint.y<=scene.height
         x: Math.max(20,Math.min(scene.width-245,scene.selectionPoint.x));y: Math.max(20,Math.min(scene.height-45,scene.selectionPoint.y))
         Rectangle { x:-8;y:-8;width:16;height:16;radius:8;color:Theme.green;border.width:3;border.color:Theme.surface }
         Rectangle {
@@ -241,5 +254,4 @@ Item {
             Label {id:partLabel;anchors.centerIn:parent;text:scene.selectedCaption;font.pixelSize:15;color:Theme.green}
         }
     }
-
 }

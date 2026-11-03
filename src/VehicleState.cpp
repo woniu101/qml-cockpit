@@ -5,7 +5,13 @@
 #include <QFileInfo>
 #include <QRandomGenerator>
 
-VehicleState::VehicleState(QObject *parent):QObject(parent) {
+VehicleState::VehicleState(QObject *parent,SystemStatus *system):QObject(parent) {
+    m_link=new VehicleLink(this);
+    m_system=system?system:new SystemStatus(this);
+    connect(m_system,&SystemStatus::powerChanged,this,&VehicleState::applySystemPower);
+    connect(m_link,&VehicleLink::snapshotReceived,this,&VehicleState::applyExternal);
+    connect(m_link,&VehicleLink::commandResult,this,&VehicleState::externalResult);
+    connect(m_link,&VehicleLink::statusChanged,this,[this]{if(!m_link->ready())m_remoteDragging.fill(false);emit sourceChanged();emit windowProgressChanged();});
     m_route=makeRoute(m_destination);
     for(int i=0;i<3;++i)m_tracks.append(QVariantMap{{"title",QStringList{QStringLiteral("沿途"),QStringLiteral("晚风"),QStringLiteral("山间")}[i]},
         {"url",QString("qrc:/ui/audio/track%1.wav").arg(i)},{"source",QStringLiteral("本地演示音源")}});
@@ -67,26 +73,9 @@ void VehicleState::setScene(const QString &value) {
     emit toast(value=="comfort"?QStringLiteral("已恢复进入场景前的空调设置"):value=="rest"?QStringLiteral("小憩模式已开启"):QStringLiteral("露营模式已开启"));
 }
 void VehicleState::setVolume(int value) {value=std::clamp(value,0,100);if(value==m_volume)return;m_volume=value;emit changed();schedulePreferences();}
-void VehicleState::setPlaying(bool value) {if(value==m_playing)return;m_playing=value;emit changed();}
+void VehicleState::setPlaying(bool value) {if(value&&!musicAvailable(m_track))value=false;if(value==m_playing)return;m_playing=value;emit changed();}
 QString VehicleState::trackTitle() const {return m_tracks.value(m_track).toMap().value("title").toString();}
 QString VehicleState::trackUrl() const {return m_tracks.value(m_track).toMap().value("url").toString();}
-void VehicleState::setPlayMode(const QString &value) {if(!QStringList{"all","one","shuffle"}.contains(value)||value==m_playMode)return;m_playMode=value;emit changed();schedulePreferences();}
-void VehicleState::selectTrack(int index) {
-    if(index<0||index>=m_tracks.size())return;
-    if(index==m_track){setPlaying(!m_playing);return;}
-    m_track=index;m_position=0;m_duration=0;m_playing=true;m_mediaStatus="loading";m_mediaError.clear();emit changed();emit positionChanged();
-}
-void VehicleState::nextTrack(int direction) {
-    if(m_tracks.isEmpty())return;
-    int index=(m_track+(direction<0?-1:1)+m_tracks.size())%m_tracks.size();
-    if(m_playMode=="shuffle" && m_tracks.size()>1){do{index=QRandomGenerator::global()->bounded(int(m_tracks.size()));}while(index==m_track);}
-    if(index==m_track){m_position=0;m_playing=true;emit seekRequested(0);emit changed();emit positionChanged();}
-    else selectTrack(index);
-}
-void VehicleState::finishTrack() {
-    if(m_playMode=="one"){m_position=0;m_playing=true;emit seekRequested(0);emit changed();emit positionChanged();}
-    else nextTrack();
-}
 void VehicleState::importTracks(const QVariantList &urls) {
     int count=0;
     for(const auto &entry:urls){
@@ -94,10 +83,30 @@ void VehicleState::importTracks(const QVariantList &urls) {
         if(!url.isLocalFile() || !file.isFile())continue;
         bool duplicate=false;for(const auto &track:m_tracks)if(track.toMap()["url"]==url.toString())duplicate=true;
         if(duplicate)continue;
-        m_tracks.append(QVariantMap{{"title",file.completeBaseName()},{"url",url.toString()},{"source",QStringLiteral("本地文件")}});++count;
+        m_tracks.append(QVariantMap{{"title",file.completeBaseName()},{"url",url.toString()},{"source",QStringLiteral("本地文件")},{"folder",file.absolutePath()},{"available",true}});++count;
     }
     if(count){emit changed();emit toast(QStringLiteral("已加入 %1 首本地音源").arg(count));}
     else emit toast(QStringLiteral("没有可加入的新音源"),"info");
+}
+void VehicleState::mergeMusicTracks(const QVariantList &rows){
+    for(const auto &entry:rows){const auto row=entry.toMap();const auto url=row.value("url").toString();if(!QUrl(url).isLocalFile())continue;bool found=false;
+        for(auto &track:m_tracks)if(track.toMap().value("url")==url){auto value=track.toMap();for(auto it=row.cbegin();it!=row.cend();++it)value[it.key()]=it.value();track=value;found=true;break;}
+        if(!found)m_tracks.append(row);
+    }emit changed();
+}
+void VehicleState::updateTrackProperties(const QString &url,const QVariantMap &properties){
+    for(auto &entry:m_tracks){auto row=entry.toMap();if(row.value("url")!=url)continue;bool modified=false;
+        for(auto it=properties.cbegin();it!=properties.cend();++it)if(row.value(it.key())!=it.value()){row[it.key()]=it.value();modified=true;}
+        if(modified){entry=row;emit changed();}return;
+    }
+}
+void VehicleState::restoreMusicPosition(const QString &url,qint64 position){
+    for(int i=0;i<m_tracks.size();++i)if(m_tracks[i].toMap().value("url")==url){m_track=i;m_playing=false;m_position=qMax(0LL,position);m_duration=m_tracks[i].toMap().value("duration",0).toDouble();resetMusicHistory();emit changed();emit positionChanged();return;}
+}
+void VehicleState::removeMusicTrack(int index){
+    if(index<3||index>=m_tracks.size())return;const bool current=index==m_track;m_tracks.removeAt(index);
+    if(index<m_track)--m_track;else if(current){m_track=qMin(m_track,int(m_tracks.size())-1);m_playing=false;m_position=m_duration=0;}
+    emit changed();if(current){emit positionChanged();emit seekRequested(0);}
 }
 void VehicleState::retryTrack() {m_mediaError.clear();m_mediaStatus="loading";m_playing=true;emit mediaReloadRequested();emit changed();}
 void VehicleState::updateMediaStatus(const QString &value,const QString &error) {

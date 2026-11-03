@@ -12,13 +12,18 @@ Item {
         UiButton {objectName:"closePopup";x:parent.width-63;y:14;width:47;height:47;quiet:true;iconName:"close";z:10;onClicked:overlay.shell.popup=""}
         Loader {
             id: contents;anchors.fill:parent;active:overlay.visible
-            sourceComponent: overlay.shell.popup==="climate"?climateComponent:overlay.shell.popup==="destination"?destinationComponent:overlay.shell.popup==="settings"?settingsComponent:overlay.shell.popup==="notifications"?notificationsComponent:overlay.shell.popup==="driving"?drivingComponent:overlay.shell.popup==="demo"?demoComponent:overlay.shell.popup==="charging"?chargingComponent:appsComponent
+            sourceComponent: overlay.shell.popup==="musicQueue"||overlay.shell.popup==="musicFolders"?musicManagerComponent:overlay.shell.popup==="bluetooth"?bluetoothComponent:overlay.shell.popup==="audio"?audioComponent:overlay.shell.popup==="system"?systemComponent:overlay.shell.popup==="source"?vehicleSourceComponent:overlay.shell.popup==="climate"?climateComponent:overlay.shell.popup==="destination"?destinationComponent:overlay.shell.popup==="settings"?settingsComponent:overlay.shell.popup==="notifications"?notificationsComponent:overlay.shell.popup==="driving"?drivingComponent:overlay.shell.popup==="demo"?demoComponent:overlay.shell.popup==="charging"?chargingComponent:appsComponent
         }
     }
     KeyboardPad {id:keyboard;x:460;y:534;width:680;height:235;z:11;visible:false;input:overlay.shell.popup==="destination"&&contents.item?contents.item.input:null}
     Connections {target:overlay.shell;function onPopupChanged(){keyboard.visible=false}}
     Component {id:destinationComponent;DestinationPanel {shell:overlay.shell;onKeyboardRequested:keyboard.visible=!keyboard.visible}}
     Component {id:settingsComponent;SettingsPanel {shell:overlay.shell}}
+    Component {id:vehicleSourceComponent;SourcePanel {shell:overlay.shell}}
+    Component {id:systemComponent;SystemPanel {shell:overlay.shell}}
+    Component {id:bluetoothComponent;BluetoothPanel {shell:overlay.shell}}
+    Component {id:audioComponent;AudioPanel {}}
+    Component {id:musicManagerComponent;MusicManagerPanel {shell:overlay.shell}}
     Component {id:notificationsComponent;NotificationsPanel {shell:overlay.shell}}
     Component {id:drivingComponent;DrivingPanel {shell:overlay.shell}}
     Component {id:demoComponent;DemoPanel {shell:overlay.shell}}
@@ -44,13 +49,13 @@ Item {
         id:chargingComponent
         Item {
             Label {x:30;y:27;text:"附近充电站";font.pixelSize:28}
-            Label {x:30;y:99;text:Vehicle.batteryPercent.toFixed(1)+"%";font.pixelSize:45;color:Theme.green}
-            Label {x:260;y:123;text:"续航 "+Vehicle.rangeKm+" km";font.pixelSize:23}
+            Label {objectName:"nearbyChargeSoc";x:30;y:99;text:EnergyVisual.socText;font.pixelSize:45;color:EnergyVisual.readingColor}
+            Label {objectName:"nearbyChargeRange";x:260;y:123;width:290;text:(EnergyVisual.realSystem?"估算续航 ":"续航 ")+EnergyVisual.rangeText;font.pixelSize:21}
             Repeater {model:["滨江充电站","云杉快充站","望江公共充电站"]
                 UiButton {required property string modelData;required property int index;x:30;y:220+index*79;width:520;height:62;text:modelData+" · "+Vehicle.routePreview(modelData).km+" km";textSize:21;iconName:"charge";onClicked:overlay.shell.navigateTo(modelData)}
             }
             UiButton {x:30;y:486;width:520;height:56;text:"打开车辆补能控制";onClicked:overlay.shell.inspectPart("port")}
-            Label {x:30;y:569;text:"站点与补能均为离线演示";font.pixelSize:15;color:Theme.muted}
+            Label {x:30;y:569;text:EnergyVisual.realSystem?"站点为离线示意 · 电量来自 Windows":"站点与补能均为离线演示";font.pixelSize:15;color:Theme.muted}
         }
     }
     Component {

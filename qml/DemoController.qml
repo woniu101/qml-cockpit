@@ -9,6 +9,7 @@ Item {
     property var saved: ({})
     property int savedPage: 0
     function start(){
+        if(Vehicle.sourceMode!=="internal"){shell.notify("自动演示请切换到内置数据源","warning");return}
         if(running)return
         saved=Vehicle.snapshot();savedPage=shell.page
         Vehicle.setDemoActive(true)

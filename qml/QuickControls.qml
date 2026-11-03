@@ -10,7 +10,7 @@ Item {
         else if(index===1){page.selectedPart="hood";page.focusSelected();Vehicle.toggleHood()}
         else if(index===2){page.selectedPart="hatch";page.focusSelected();Vehicle.toggleHatch()}
         else if(index===3)Vehicle.toggleMirrors()
-        else if(index===4){page.selectedPart="port";page.focusSelected();Vehicle.togglePort()}
+        else if(index===4){page.selectedPart="port";page.focusSelected();if(Vehicle.chargeControlAvailable)Vehicle.togglePort();else page.shell.inspectPart("port")}
         else if(index===5)Vehicle.closeWindows()
         else if(index===6)Vehicle.ventilateWindows()
         else page.shell.openPopup("driving")

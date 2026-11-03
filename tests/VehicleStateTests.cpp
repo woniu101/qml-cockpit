@@ -39,6 +39,7 @@ private slots:
         VehicleState v;v.startCharging();QVERIFY(!v.charging());v.togglePort();v.togglePlug();QVERIFY(v.plugged());
         v.togglePort();QVERIFY(v.portOpen());v.startDriving();QVERIFY(v.parked());
         v.startCharging();QVERIFY(v.charging());const auto before=v.batteryPercent();v.advanceSimulation(120);QVERIFY(v.batteryPercent()>before);
+        v.setGear("N");QCOMPARE(v.gear(),QString("P"));QVERIFY(v.charging());
         v.togglePlug();QVERIFY(v.plugged());v.setChargeTarget(95);v.advanceSimulation(3600);QCOMPARE(v.batteryPercent(),95.0);QVERIFY(!v.charging());
         v.togglePlug();v.togglePort();QVERIFY(!v.portOpen());v.startDriving();QCOMPARE(v.gear(),QString("D"));
     }

@@ -24,7 +24,7 @@ Item {
     function partTitle() {
         if(selectedPart.indexOf("window")===0){const i=Number(selectedPart.slice(-1));return windowNames[i]+"车窗 · 开度 "+Math.round(Vehicle.windowActual[i])+"%"}
         if(selectedPart.indexOf("door")===0){const i=Number(selectedPart.slice(-1));return windowNames[i]+"车门 · "+(Vehicle.doorBusy[i]?"开合中":Vehicle.doors[i]?"已打开":"已关闭")}
-        return selectedPart==="hood"?"前备厢":selectedPart==="hatch"?"后备厢":selectedPart==="port"?"充电口":"车辆外观"
+        return selectedPart==="hood"?"前备厢":selectedPart==="hatch"?"后备厢":selectedPart==="port"?"充电口 · 左后侧":""
     }
     Connections { target: Vehicle; function onVisualReset(){vehiclePageRoot.selectedWindow=0;vehiclePageRoot.doorMode=false;vehiclePageRoot.section=1;vehiclePageRoot.selectedPart="window0"} }
     Label { x: 43; y: 90; text: "车辆"; font.pixelSize: 34; font.weight: Font.Medium }
@@ -53,7 +53,8 @@ Item {
     VehicleScene {
         id: vehicleScene; objectName: "controlsVehicleScene"; x: 260; y: 213; width: 885; height: 460
         activeView: vehiclePageRoot.visible
-        selectedPart: vehiclePageRoot.selectedPart; selectedCaption: vehiclePageRoot.partTitle()
+        energyDetail: vehiclePageRoot.section===5?"detailed":"ambient"
+        selectedPart: vehiclePageRoot.selectedPart; selectedCaption: vehiclePageRoot.selectedPart==="port"?"充电口":vehiclePageRoot.partTitle()
         onPartTapped: part=>{
             const codes=["lf","rf","lr","rr"],index=codes.findIndex(p=>part.indexOf("door_"+p+"_")===0)
             if(index>=0)vehiclePageRoot.choosePart(index,part.indexOf("glass")<0,false)
@@ -73,6 +74,7 @@ Item {
     Surface {
         x: 1160; y: 165; width: 395; height: 600
         Loader {
+            enabled: Vehicle.externalReady || vehiclePageRoot.section===2 || vehiclePageRoot.section===3
             anchors.fill: parent
             sourceComponent: vehiclePageRoot.section===0?quickComponent:vehiclePageRoot.section===1?(vehiclePageRoot.doorMode?doorComponent:windowComponent):vehiclePageRoot.section===5?chargeComponent:comfortComponent
         }

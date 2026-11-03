@@ -61,6 +61,7 @@ bool VehicleState::startNavigation(const QString &destination) {
 }
 void VehicleState::endNavigation() {m_navigating=false;emit changed();emit toast(QStringLiteral("导航已结束，挡位与车速保持不变"));}
 bool VehicleState::canDrive() {
+    if(!energyReady()){emit toast(QStringLiteral("电量或供电状态待确认，请等待刷新或切换数据来源"),"warning");return false;}
     if(!m_motions.isEmpty()){emit toast(QStringLiteral("请等待车门与备厢开合完成"),"warning");return false;}
     if(m_hatch||m_hood||m_port||m_plugged||std::any_of(m_doors.begin(),m_doors.end(),[](bool v){return v;})){
         emit toast(QStringLiteral("请关闭车门、前后备厢和充电口，并断开充电枪"),"warning");return false;
@@ -68,7 +69,9 @@ bool VehicleState::canDrive() {
     if(m_battery<=0){emit toast(QStringLiteral("演示电量不足，请先充电"),"warning");return false;}return true;
 }
 void VehicleState::setGear(const QString &value) {
+    if(externalCommand("setGear",{{"value",value}},QStringLiteral("切换挡位")))return;
     if(!QStringList{"P","R","N","D"}.contains(value)||value==m_gear)return;
+    if(value!="P"&&(m_plugged||m_charging)){emit toast(QStringLiteral("请暂停充电并断开充电枪后换挡"),"warning");return;}
     if((value=="D"||value=="R")&&!canDrive())return;
     if(m_scene!="comfort" && (value=="D"||value=="R"))setScene("comfort");
     m_gear=value;if(value=="P"||value=="N")m_speed=0;
@@ -77,39 +80,49 @@ void VehicleState::setGear(const QString &value) {
     emit changed();
 }
 void VehicleState::setSpeed(int value) {
+    if(externalCommand("setSpeed",{{"value",value}},QStringLiteral("调整车速")))return;
     value=std::clamp(value,0,m_gear=="R"?15:100);
     if((m_gear!="D"&&m_gear!="R") && value>0)return;
+    if(value>0&&systemMode()&&!canDrive())return;
     if(value==m_speed)return;m_speed=value;emit changed();
 }
-void VehicleState::startDriving() {if(!canDrive())return;setGear("D");if(m_gear=="D"){setSpeed(40);emit toast(QStringLiteral("行驶演示已开始 · D 挡 40 km/h"));}}
-void VehicleState::parkVehicle() {m_speed=0;m_gear="P";emit changed();emit toast(QStringLiteral("车辆已驻车，导航可继续保留"));}
+void VehicleState::startDriving() {if(externalCommand("startDriving",{},QStringLiteral("开始行驶")))return;if(!canDrive())return;setGear("D");if(m_gear=="D"){setSpeed(40);emit toast(QStringLiteral("行驶演示已开始 · D 挡 40 km/h"));}}
+void VehicleState::parkVehicle() {if(externalCommand("park",{},QStringLiteral("挂 P 驻车")))return;m_speed=0;m_gear="P";emit changed();emit toast(QStringLiteral("车辆已驻车，导航可继续保留"));}
 void VehicleState::advanceRoute(double seconds) {
+    if(externalMode())return;
     if(!m_navigating || m_speed<=0 || m_gear!="D" || !std::isfinite(seconds) || seconds<=0)return;
     m_progress=std::min(1.0,m_progress+m_speed*seconds/3600/m_route.km);
     if(m_progress>=1){m_navigating=false;emit toast(QStringLiteral("已到达目的地，导航结束"));}emit changed();
 }
 int VehicleState::rangeKm() const {return qRound(m_battery*5.2);}
 QString VehicleState::chargeStatus() const {
+    if(systemMode()&&!m_systemFallback)return m_system->power()["statusText"].toString();
     if(!m_plugged)return QStringLiteral("未连接充电枪");
     if(m_charging)return QStringLiteral("正在充电");
     return m_battery>=m_chargeTarget?QStringLiteral("已达到目标电量"):QStringLiteral("已连接 · 等待充电");
 }
-int VehicleState::chargeMinutes() const {return m_plugged?std::max(0,int(std::ceil((m_chargeTarget-m_battery)/100*60/55*60))):0;}
-void VehicleState::setChargeTarget(int value) {value=std::clamp(value,50,100);if(value==m_chargeTarget)return;m_chargeTarget=value;if(m_battery>=value)m_charging=false;emit changed();schedulePreferences();}
+int VehicleState::chargeMinutes() const {return chargePowerKnown()&&m_plugged?std::max(0,int(std::ceil((m_chargeTarget-m_battery)/100*60/55*60))):0;}
+void VehicleState::setChargeTarget(int value) {if(systemEnergyCommand())return;if(externalCommand("setChargeTarget",{{"value",value}},QStringLiteral("充电目标")))return;value=std::clamp(value,50,100);if(value==m_chargeTarget)return;m_chargeTarget=value;if(m_battery>=value)m_charging=false;emit changed();schedulePreferences();}
 void VehicleState::togglePlug() {
+    if(systemEnergyCommand())return;
+    if(externalCommand("setPlugged",{{"value",!m_plugged}},QStringLiteral("充电枪连接")))return;
     if(!parked()||!m_port){emit toast(QStringLiteral("请驻车并打开充电口后连接充电枪"),"warning");return;}
     if(m_charging){emit toast(QStringLiteral("请先暂停充电，再断开充电枪"),"warning");return;}
     m_plugged=!m_plugged;emit changed();
 }
 void VehicleState::startCharging() {
+    if(systemEnergyCommand())return;
+    if(externalCommand("startCharging",{},QStringLiteral("开始充电")))return;
     if(!parked()||!m_plugged||!m_port){emit toast(QStringLiteral("请驻车并连接充电枪"),"warning");return;}
     if(m_battery>=m_chargeTarget){emit toast(QStringLiteral("已达到目标电量，请提高充电目标"),"info");return;}
     m_charging=true;emit changed();emit toast(QStringLiteral("补能演示已开始"));
 }
-void VehicleState::stopCharging() {if(!m_charging)return;m_charging=false;emit changed();}
+void VehicleState::stopCharging() {if(systemEnergyCommand())return;if(externalCommand("stopCharging",{},QStringLiteral("暂停充电")))return;if(!m_charging)return;m_charging=false;emit changed();}
 void VehicleState::advanceSimulation(double seconds) {
+    if(externalMode()){refreshTheme();if(seconds>1)externalCommand("advance",{{"seconds",seconds}},QStringLiteral("模拟快进"));return;}
     if(!std::isfinite(seconds)||seconds<=0)return;seconds=std::min(seconds,3600.0);refreshTheme();
     advanceRoute(seconds);bool energyChanged=false;
+    if(systemMode()&&!m_systemFallback){if(m_speed>0){m_tripKm+=m_speed*seconds/3600;emit changed();}return;}
     if(m_speed>0){m_tripKm+=m_speed*seconds/3600;m_battery=std::max(0.0,m_battery-m_speed*seconds/3600*0.15/60*100);energyChanged=true;if(m_battery<=0)m_speed=0;}
     if(m_charging){
         m_battery=std::min(double(m_chargeTarget),m_battery+55.0/60/3600*100*seconds);energyChanged=true;
