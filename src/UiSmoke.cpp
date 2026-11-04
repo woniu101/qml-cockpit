@@ -1,9 +1,12 @@
 #include "UiSmoke.h"
 #include "VehicleState.h"
+#include "media/MediaState.h"
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QQuickItem>
 #include <QMediaPlayer>
+#include <QMediaDevices>
+#include <QAudioDevice>
 #include <QDir>
 #include <QTimer>
 #include <QWheelEvent>
@@ -22,7 +25,7 @@
 #include <stdexcept>
 #include <cmath>
 
-void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,QMediaPlayer &player,QStringList &warnings,bool native) {
+void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,MediaState &music,QMediaPlayer &player,QStringList &warnings,bool native) {
     window.setProperty("testMode",true);window.setProperty("clockText","16:28");window.setProperty("dateText",QStringLiteral("11月2日 周一"));window.setProperty("greetingText",QStringLiteral("下午好，林先生"));window.setProperty("arrivalText","16:46");
     QTimer::singleShot(1800,&app,[&,native]{
         window.raise();window.requestActivate();const QString directory=QDir::current().absoluteFilePath(qEnvironmentVariable("CAR_TERMINAL_SMOKE_DIR",native?"artifacts/v6/native":"artifacts/v6/basic"));QDir().mkpath(directory);
@@ -79,15 +82,17 @@ void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,QM
             if(state.charging())click("chargeStart");click("chargePlug");click("chargePort");require(!state.plugged()&&!state.portOpen(),"disconnect and close charge port");
             click("vehicleSection3");click("highBeam");require(state.highBeam(),"light group");capture("16-lights");
             click("climateButton");click("climateSync");click("driverTemperatureSlider",0.4);require(state.climateSync()&&state.driverTemperature()==state.passengerTemperature(),"dual climate sync");capture("17-climate");click("closePopup");
-            click("tab3");click("fullMusicPlay");require(state.playing(),"media play");wait([&]{return player.duration()>1000;},"local audio decode");click("trackRow0");require(!state.playing(),"current playlist row pauses");
-            const auto queue=state.playQueue();require(queue.size()==3,"current view defines built-in queue");const auto nextUrl=queue[(queue.indexOf(state.trackUrl())+1)%queue.size()];click("fullMusicNext");require(state.trackUrl()==nextUrl&&state.playing(),"next song follows visible queue order");wait([&]{return player.source()==QUrl(nextUrl)&&player.duration()>1000;},"queued audio decoded");state.seek(15000);QTest::qWait(250);require(player.position()>14000,"media seek");capture("18-music");
+            click("tab3");if(!QMediaDevices::audioOutputs().isEmpty()){
+            click("fullMusicPlay");require(music.playing(),"media play");wait([&]{return player.duration()>1000;},"local audio decode");click("trackRow0");require(!music.playing(),"current playlist row pauses");
+            const auto queue=music.playQueue();require(queue.size()==3,"current view defines built-in queue");const auto nextUrl=queue[(queue.indexOf(music.trackUrl())+1)%queue.size()];click("fullMusicNext");require(music.trackUrl()==nextUrl&&music.playing(),"next song follows visible queue order");wait([&]{return player.source()==QUrl(nextUrl)&&player.duration()>1000;},"queued audio decoded");music.seek(15000);QTest::qWait(250);require(player.position()>14000,"media seek");capture("18-music");
+            }else{require(!item("fullMusicPlay")->isEnabled()&&!music.playing(),"no-output music controls stay disabled");capture("18-music-no-output");qInfo()<<"Local audible playback skipped: Windows reports no audio outputs";}
             click("settingsButton");click("theme_night");require(state.night(),"theme preference");require(item("settingsTitle")->property("color").value<QColor>().lightness()>150,"night text remains readable");capture("19-settings-night");click("theme_day");click("closePopup");
-            const auto before=state.snapshot();window.setProperty("page",0);window.setProperty("popup","demo");QTest::qWait(100);click("autoDemoButton");require(window.property("demoRunning").toBool(),"start controlled demo");click("demoPauseInline");require(window.property("demoPaused").toBool(),"demo pause");click("demoNextInline");require(window.property("demoStep").toInt()==1,"single step");click("demoStopInline");require(!window.property("demoRunning").toBool()&&state.driverTemperature()==before["driver"].toDouble()&&state.volume()==before["volume"].toInt(),"exit demo restores preferences and runtime");
+            const auto before=state.snapshot();const auto beforeMusic=music.snapshot();window.setProperty("page",0);window.setProperty("popup","demo");QTest::qWait(100);click("autoDemoButton");require(window.property("demoRunning").toBool(),"start controlled demo");click("demoPauseInline");require(window.property("demoPaused").toBool(),"demo pause");click("demoNextInline");require(window.property("demoStep").toInt()==1,"single step");click("demoStopInline");require(!window.property("demoRunning").toBool()&&state.driverTemperature()==before["driver"].toDouble()&&music.volume()==beforeMusic["volume"].toInt(),"exit demo restores preferences and runtime");
             if(native&&!qEnvironmentVariableIsSet("CAR_TERMINAL_SKIP_SOAK")){
                 for(int cycle=0;cycle<3;++cycle){
                     window.setProperty("popup","demo");QTest::qWait(80);click("autoDemoButton");click("demoPauseInline");
                     for(int step=1;step<12;++step){click("demoNextInline");QTest::qWait(1000);require(window.property("demoRunning").toBool()&&window.property("demoStep").toInt()==step,"repeated demo reaches each step");}
-                    click("demoNextInline");require(!window.property("demoRunning").toBool(),"complete demo restores state");require(state.volume()==before["volume"].toInt()&&state.batteryPercent()==before["battery"].toDouble(),"repeated demo restores battery and preferences");
+                    click("demoNextInline");require(!window.property("demoRunning").toBool(),"complete demo restores state");require(music.volume()==beforeMusic["volume"].toInt()&&state.batteryPercent()==before["battery"].toDouble(),"repeated demo restores battery and preferences");
                 }
             }
             window.resize(1120,700);QTest::qWait(200);click("tab2");click("windowOpeningSlider",0.5);require(std::abs(state.windowActual()[0].toDouble()-50)<3,"scaled pointer percentage");capture("20-scaled");

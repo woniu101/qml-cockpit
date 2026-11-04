@@ -7,7 +7,7 @@
 #include <QFileSystemWatcher>
 #include <QMediaPlayer>
 #include "Lyrics.h"
-class VehicleState;
+class MediaState;
 class MusicLibrary:public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList rows READ rows NOTIFY changed)
@@ -15,6 +15,7 @@ class MusicLibrary:public QObject {
     Q_PROPERTY(QStringList roots READ roots NOTIFY changed)
     Q_PROPERTY(QVariantList rootEntries READ rootEntries NOTIFY changed)
     Q_PROPERTY(QVariantList queue READ queue NOTIFY changed)
+    Q_PROPERTY(int queueCount READ queueCount NOTIFY changed)
     Q_PROPERTY(QString queueText READ queueText NOTIFY changed)
     Q_PROPERTY(QString query READ query WRITE setQuery NOTIFY changed)
     Q_PROPERTY(QString category READ category WRITE setCategory NOTIFY changed)
@@ -29,13 +30,14 @@ class MusicLibrary:public QObject {
     Q_PROPERTY(int lyricIndex READ lyricIndex NOTIFY lyricPositionChanged)
     Q_PROPERTY(int lyricOffset READ lyricOffset WRITE setLyricOffset NOTIFY lyricsChanged)
 public:
-    MusicLibrary(VehicleState*,QMediaPlayer*,QObject *parent=nullptr,const QString &storageFile={});
+    MusicLibrary(MediaState*,QMediaPlayer*,QObject *parent=nullptr,const QString &storageFile={});
     ~MusicLibrary() override;
     QVariantList rows() const;
     QStringList groups() const;
     QStringList roots() const{return m_roots;}
     QVariantList rootEntries() const;
     QVariantList queue() const;
+    int queueCount() const;
     QString queueText() const;
     QString query() const{return m_query;}
     QString category() const{return m_category;}
@@ -85,7 +87,7 @@ private:
     void refreshLyricsIfChanged();
     void load();
     void metadataChanged();
-    VehicleState *m_vehicle;
+    MediaState *m_state;
     QMediaPlayer *m_player;
     QThread *m_worker=nullptr;
     QTimer m_saveTimer,m_checkpoint;

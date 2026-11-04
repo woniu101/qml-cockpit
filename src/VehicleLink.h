@@ -33,7 +33,7 @@ public:
 signals:
     void statusChanged();void activityChanged();
     void snapshotReceived(const QJsonObject &state);
-    void commandResult(const QString &kind,const QJsonObject &args,const QString &status,const QString &reason);
+    void commandResult(const QString &kind,const QJsonObject &args,const QString &status,const QString &reason,const QString &id);
 private:
     struct Pending{QString kind,label;QJsonObject args;qint64 deadline;bool accepted=false;};
     void read();void message(const QJsonObject&);void tick();void invalidate(const QString&);void failPending(const QString&);void log(const QString&);

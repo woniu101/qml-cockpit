@@ -13,6 +13,6 @@ Item {
     UiButton { objectName: "startDriving"; x: 30; y: 400; width: 253; height: 57; primary: true; text: "进入 D 挡行驶演示"; textSize: 19; onClicked: driving.shell.enterDriving() }
     UiButton { objectName: "parkDriving"; x: 297; y: 400; width: 253; height: 57; text: "挂 P 挡驻车"; textSize: 19; onClicked: Vehicle.parkVehicle() }
     UiButton { objectName: "driveFastForward"; x: 30; y: 480; width: 253; height: 48; text: "快进 1 分钟"; textSize: 18; onClicked: Vehicle.advanceSimulation(60) }
-    UiButton { x: 297; y: 480; width: 253; height: 48; text: "查看行驶画面"; textSize: 18; onClicked: driving.shell.showPage(4) }
+    UiButton { x: 297; y: 480; width: 253; height: 48; text: "查看行驶画面"; textSize: 18; onClicked: driving.shell.showPage(AppRoutes.Driving) }
     Label { x: 30; y: 550; width: 520; text: "导航与挡位独立 · 仅为本地车辆信号演示"; font.pixelSize: 16; color: Theme.muted }
 }

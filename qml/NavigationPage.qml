@@ -28,7 +28,7 @@ Item {
         Repeater {model:5;Icon{required property int index;x:42+index*71;y:14;width:28;height:28;name:"arrow-up";tint:index<2?Theme.green:Theme.muted;rotation:Vehicle.turnType==="right"?22:Vehicle.turnType==="left"?-22:0}}
         Label {x:10;y:50;width:449;text:Vehicle.parked?"路线已规划，车辆保持驻车":Vehicle.laneHint;font.pixelSize:17;color:Theme.muted;horizontalAlignment:Text.AlignHCenter}
     }
-    MusicCard {x:40;y:565;compact:true;shell:page.shell}
+    MediaCard {x:40;y:565;compact:true;shell:page.shell}
     UiButton {objectName:"endNavigation";x:40;y:736;width:145;height:40;iconName:Vehicle.navigationActive?"close":"search";text:Vehicle.navigationActive?"结束导航":"目的地";textSize:18;onClicked:{if(Vehicle.navigationActive)Vehicle.endNavigation();else page.shell.openPopup("destination")}}
     UiButton {x:199;y:736;width:145;height:40;text:"路线总览";textSize:18;iconName:"layers";onClicked:{map.overview=!map.overview;map.zoom=map.overview?0.82:1;map.panX=0;map.panY=0}}
     Repeater {

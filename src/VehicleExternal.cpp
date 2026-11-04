@@ -29,11 +29,16 @@ void VehicleState::setSourceMode(const QString &mode){
     emit sourceChanged();emit changed();emit windowProgressChanged();emit motionsChanged();
 }
 bool VehicleState::externalCommand(const QString &kind,const QJsonObject &args,const QString &label){
-    if(!externalMode())return false;const auto id=m_link->request(kind,args,label);
+    if(!externalMode())return false;
+    sendExternalCommand(kind,args,label);
+    return true;
+}
+QString VehicleState::sendExternalCommand(const QString &kind,const QJsonObject &args,const QString &label){
+    const auto id=m_link->request(kind,args,label);
     if(!id.isEmpty()&&(kind=="setWindow"||kind=="stopWindow")){
         const int i=args["index"].toInt(-1);if(i>=0&&i<4){m_windowMessages[i]=kind=="setWindow"?QStringLiteral("目标 %1% · 等待模拟器确认").arg(args["target"].toInt()):QStringLiteral("等待模拟器确认停止");emit windowProgressChanged();}
     }
-    return true;
+    return id;
 }
 void VehicleState::applyExternal(const QJsonObject &s){
     if(!externalMode())return;

@@ -85,17 +85,6 @@ class VehicleState : public QObject {
     Q_PROPERTY(double chargePower READ chargePower NOTIFY changed)
     Q_PROPERTY(int chargeMinutes READ chargeMinutes NOTIFY changed)
     Q_PROPERTY(QString scene READ scene NOTIFY changed)
-    Q_PROPERTY(int volume READ volume WRITE setVolume NOTIFY changed)
-    Q_PROPERTY(bool playing READ playing WRITE setPlaying NOTIFY changed)
-    Q_PROPERTY(int track READ track NOTIFY changed)
-    Q_PROPERTY(QString trackTitle READ trackTitle NOTIFY changed)
-    Q_PROPERTY(QString trackUrl READ trackUrl NOTIFY changed)
-    Q_PROPERTY(QVariantList tracks READ tracks NOTIFY changed)
-    Q_PROPERTY(QString playMode READ playMode WRITE setPlayMode NOTIFY changed)
-    Q_PROPERTY(QString mediaStatus READ mediaStatus NOTIFY changed)
-    Q_PROPERTY(QString mediaError READ mediaError NOTIFY changed)
-    Q_PROPERTY(double position READ position NOTIFY positionChanged)
-    Q_PROPERTY(double duration READ duration NOTIFY positionChanged)
     Q_PROPERTY(bool night READ night WRITE setNight NOTIFY changed)
     Q_PROPERTY(QString themeMode READ themeMode WRITE setThemeMode NOTIFY changed)
     Q_PROPERTY(bool autoFocus READ autoFocus WRITE setAutoFocus NOTIFY changed)
@@ -179,17 +168,6 @@ public:
     double chargePower() const { return !chargePowerKnown()?0:externalMode()?m_remoteChargePower:(m_charging?55.0:0); }
     int chargeMinutes() const;
     QString scene() const { return m_scene; }
-    int volume() const { return m_volume; }
-    bool playing() const { return m_playing; }
-    int track() const { return m_track; }
-    QString trackTitle() const;
-    QString trackUrl() const;
-    QVariantList tracks() const { return m_tracks; }
-    QString playMode() const { return m_playMode; }
-    QString mediaStatus() const { return m_mediaStatus; }
-    QString mediaError() const { return m_mediaError; }
-    double position() const { return m_position; }
-    double duration() const { return m_duration; }
     bool night() const { return m_night; }
     QString themeMode() const { return m_themeMode; }
     bool autoFocus() const { return m_autoFocus; }
@@ -214,34 +192,16 @@ public:
     void setGear(const QString&);
     void setSpeed(int);
     void setChargeTarget(int);
-    void setVolume(int);
-    void setPlaying(bool);
-    void setPlayMode(const QString&);
     void setNight(bool);
     void setThemeMode(const QString&);
     void setAutoFocus(bool);
     void setQuality(const QString&);
-    void updatePosition(double);
-    void updateDuration(double);
-    void updateMediaStatus(const QString&,const QString &error=QString());
-    bool demoActive() const{return m_demoActive;}
-    void mergeMusicTracks(const QVariantList&);
-    void updateTrackProperties(const QString &url,const QVariantMap &properties);
-    void restoreMusicPosition(const QString &url,qint64 position);
-    void removeMusicTrack(int index);
-    QStringList playQueue() const;
-    QString queueLabel() const{return m_queueLabel;}
-    bool hasExplicitQueue() const{return m_explicitQueue;}
-    void setPlayQueue(const QStringList &urls,const QString &label);
-    void replaceMusicTrack(int index,const QVariantMap &row);
-    Q_INVOKABLE void moveQueueTrack(const QString &url,int direction);
-    Q_INVOKABLE void removeQueueTrack(const QString &url);
-    Q_INVOKABLE void setWindow(int index,int opening);
+    Q_INVOKABLE QString setWindow(int index,int opening);
     Q_INVOKABLE void beginWindowDrag(int index);
     Q_INVOKABLE void previewWindow(int index,int opening);
     Q_INVOKABLE void endWindowDrag(int index);
     Q_INVOKABLE void stopWindow(int index);
-    Q_INVOKABLE void closeWindows();
+    Q_INVOKABLE QString closeWindows();
     Q_INVOKABLE void ventilateWindows();
     Q_INVOKABLE void toggleLock();
     Q_INVOKABLE void toggleHatch();
@@ -261,12 +221,6 @@ public:
     Q_INVOKABLE void startCharging();
     Q_INVOKABLE void stopCharging();
     Q_INVOKABLE void setScene(const QString&);
-    Q_INVOKABLE void nextTrack(int direction=1);
-    Q_INVOKABLE void selectTrack(int index);
-    Q_INVOKABLE void finishTrack();
-    Q_INVOKABLE void importTracks(const QVariantList& urls);
-    Q_INVOKABLE void retryTrack();
-    Q_INVOKABLE void seek(double milliseconds);
     Q_INVOKABLE QVariantMap snapshot() const;
     Q_INVOKABLE void restoreSnapshot(const QVariantMap&);
     Q_INVOKABLE void resetRuntime();
@@ -275,17 +229,14 @@ public:
 signals:
     void sourceChanged();
     void changed();
-    void positionChanged();
     void windowProgressChanged();
     void motionsChanged();
     void statusChanged();
     void visualReset();
     void toast(const QString &message,const QString &kind=QStringLiteral("success"));
-    void seekRequested(qint64);
-    void mediaReloadRequested();
-    void queueChanged();
 private:
     bool externalCommand(const QString&,const QJsonObject&,const QString&);
+    QString sendExternalCommand(const QString&,const QJsonObject&,const QString&);
     void applyExternal(const QJsonObject&);
     void externalResult(const QString&,const QJsonObject&,const QString&,const QString&);
     void applySystemPower();
@@ -310,10 +261,6 @@ private:
     static Route makeRoute(const QString&);
     Location routeLocation() const;
     bool canDrive();
-    int musicIndex(const QString &url) const;
-    bool musicAvailable(int index) const;
-    void activateMusic(int index,bool recordHistory);
-    void resetMusicHistory();
     void beginMotion(const QString&,const QString&,const QString&,int);
     void tickWindows();
     void setWindowInternal(int,int,bool);
@@ -334,10 +281,10 @@ private:
     int m_windowNotifyTicks=0;
     std::array<bool,4> m_doors{false,false,false,false};
     double m_driver=22,m_passenger=22;
-    int m_fan=3,m_heat=0,m_volume=45,m_track=0;
+    int m_fan=3,m_heat=0;
     bool m_ac=true,m_auto=true,m_defrost=false,m_sync=false;
     bool m_locked=true,m_hatch=false,m_hood=false,m_port=false,m_mirrors=false,m_highBeam=false,m_fog=false;
-    bool m_navigating=false,m_playing=false,m_night=false,m_autoFocus=true;
+    bool m_navigating=false,m_night=false,m_autoFocus=true;
     QString m_gear="P",m_scene="comfort",m_themeMode="day",m_quality="standard",m_lightMode="auto",m_airDirection="face";
     int m_speed=0;
     QString m_destination=QStringLiteral("滨江艺术中心");
@@ -345,14 +292,6 @@ private:
     double m_progress=0,m_battery=82,m_tripKm=0;
     bool m_plugged=false,m_charging=false;
     int m_chargeTarget=90;
-    QVariantList m_tracks;
-    QStringList m_queueUrls,m_musicHistory;
-    QSet<QString> m_shuffleVisited;
-    QString m_queueLabel=QStringLiteral("全部歌曲");
-    int m_historyCursor=-1;
-    bool m_explicitQueue=false;
-    QString m_playMode="all",m_mediaStatus="loading",m_mediaError;
-    double m_position=0,m_duration=64000;
     double m_savedDriver=22,m_savedPassenger=22;
     int m_savedFan=3;
     bool m_savedAc=true,m_savedAuto=true;

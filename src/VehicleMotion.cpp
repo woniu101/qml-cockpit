@@ -32,13 +32,17 @@ void VehicleState::setWindowInternal(int index,int opening,bool batch) {
     if(index<0||index>=4)return;opening=std::clamp(opening,0,100);
     if(!batch)m_windowBatch.clear();
     m_windowDragging[index]=false;
-    if(std::abs(m_windowActual[index]-opening)<0.01){m_windowTargets[index]=opening;m_windowMoving[index]=false;emit windowProgressChanged();emit motionsChanged();return;}
+    if(std::abs(m_windowActual[index]-opening)<0.01){m_windowActual[index]=m_windowTargets[index]=opening;m_windowMoving[index]=false;emit windowProgressChanged();emit motionsChanged();return;}
     m_windowTargets[index]=opening;m_windowMoving[index]=true;
     m_windowMessages[index]=m_windowActual[index]<opening?QStringLiteral("正在降窗"):QStringLiteral("正在升窗");
     if(!m_windowTimer.isActive()){m_windowClock.start();m_windowTimer.start();}
     emit windowProgressChanged();emit motionsChanged();
 }
-void VehicleState::setWindow(int index,int opening) {if(externalCommand("setWindow",{{"index",index},{"target",opening}},QStringLiteral("调整车窗")))return;setWindowInternal(index,opening,false);}
+QString VehicleState::setWindow(int index,int opening) {
+    if(externalMode())return sendExternalCommand("setWindow",{{"index",index},{"target",opening}},QStringLiteral("调整车窗"));
+    setWindowInternal(index,opening,false);
+    return {};
+}
 void VehicleState::tickWindows() {
     if(externalMode())return;
     const double step=std::min(0.1,m_windowClock.restart()/1000.0)*100.0/1.8;
@@ -82,10 +86,11 @@ void VehicleState::stopWindow(int index) {
     m_windowActual[index]=m_windowTargets[index]=qRound(m_windowActual[index]);
     m_windowMessages[index]=QStringLiteral("已停在 %1%").arg(m_windowTargets[index]);emit windowProgressChanged();emit motionsChanged();
 }
-void VehicleState::closeWindows() {
-    if(externalCommand("closeWindows",{},QStringLiteral("全部关窗")))return;
-    bool any=false;for(int i=0;i<4;++i)if(m_windowActual[i]>0.01 || m_windowMoving[i] || m_windowDragging[i]){setWindowInternal(i,0,true);any|=m_windowMoving[i];}
+QString VehicleState::closeWindows() {
+    if(externalMode())return sendExternalCommand("closeWindows",{},QStringLiteral("全部关窗"));
+    bool any=false;for(int i=0;i<4;++i)if(m_windowActual[i]>0 || m_windowMoving[i] || m_windowDragging[i]){setWindowInternal(i,0,true);any|=m_windowMoving[i];}
     m_windowBatch=any?"close":"";emit motionsChanged();
+    return {};
 }
 void VehicleState::ventilateWindows() {
     if(externalCommand("ventilateWindows",{},QStringLiteral("全车通风")))return;

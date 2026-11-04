@@ -1,5 +1,6 @@
 #include "LinkSmoke.h"
 #include "VehicleState.h"
+#include "media/MediaState.h"
 #include "protocol/VehicleProtocol.h"
 #include <QGuiApplication>
 #include <QQuickWindow>
@@ -14,7 +15,7 @@
 #include <functional>
 #include <stdexcept>
 
-void runLinkSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,QStringList &warnings){
+void runLinkSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,MediaState &music,QStringList &warnings){
     window.setProperty("testMode",true);window.setProperty("clockText","16:28");
     QTimer::singleShot(1200,&app,[&]{
         window.showNormal();window.raise();window.requestActivate();
@@ -85,7 +86,7 @@ void runLinkSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,
             control("startDriving");wait([&]{return state.speed()==40;},"resume before stale test");state.startNavigation(QStringLiteral("公司"));click("tab0");click("homeDriving");drive=item("drivingVehicleScene");QTest::qWait(350);const auto routeBeforeLoss=state.routeProgress();control("faults",{{"pauseTelemetry",true}});wait([&]{return !state.externalReady();},"stale telemetry disables control",6000);const auto staleSoc=state.batteryPercent();const auto frozen=drive->property("travelMeters").toDouble();QTest::qWait(220);require(drive->property("travelMeters").toDouble()==frozen,"stale data stops road and wheel animation");state.setWindow(0,100);require(state.batteryPercent()==staleSoc,"stale data retains last actual SOC");require(!item("driveGearD")->isEnabled(),"stale data disables remote driving controls");capture("07-data-stale");
             control("advance",{{"seconds",60}});control("faults",{{"pauseTelemetry",false}});wait([&]{return state.externalReady();},"fresh snapshot restores connection",8000);require(state.routeProgress()>routeBeforeLoss+0.06,"same session reconnect catches up travelled navigation distance");capture("08-reconnected");
             stopSimulator();wait([&]{return !state.externalReady();},"server process exit detected");simulator.start();require(simulator.waitForStarted(3000),"restart simulator");connectConsole();wait([&]{return state.externalReady()&&state.batteryPercent()>81.9;},"new simulator session full snapshot",8000);
-            state.setVolume(51);click("sourceButton");click("sourceInternal");require(!state.externalMode()&&state.batteryPercent()==local["battery"].toDouble()&&state.windows()[0].toDouble()==local["windows"].toList()[0].toDouble(),"restore previous internal vehicle state");require(state.volume()==51,"source switch preserves local media preferences");click("closePopup");click("tab0");capture("09-internal-restored");
+            music.setVolume(51);click("sourceButton");click("sourceInternal");require(!state.externalMode()&&state.batteryPercent()==local["battery"].toDouble()&&state.windows()[0].toDouble()==local["windows"].toList()[0].toDouble(),"restore previous internal vehicle state");require(music.volume()==51,"source switch preserves local media preferences");click("closePopup");click("tab0");capture("09-internal-restored");
             require(warnings.isEmpty(),qPrintable(warnings.join('\n')));console.disconnect(&app);console.abort();stopSimulator();qInfo()<<"PASS dual-process link: telemetry, actual window motion, stop, all four windows, SOC/speed, charging to target, rejection, timeout, stale freeze, navigation catch-up, reconnect, process restart and internal restore";app.exit(0);
         }catch(const std::exception &error){window.grabWindow().save(directory+"/failure.png");qCritical()<<"LINK FAIL:"<<error.what();qCritical().noquote()<<simulator.readAllStandardError();console.disconnect(&app);console.abort();stopSimulator();app.exit(2);}
     });

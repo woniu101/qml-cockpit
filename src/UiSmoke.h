@@ -3,5 +3,5 @@
 class QGuiApplication;
 class QQuickWindow;
 class QMediaPlayer;
-class VehicleState;
-void runUiSmoke(QGuiApplication&,QQuickWindow&,VehicleState&,QMediaPlayer&,QStringList&,bool native);
+class VehicleState;class MediaState;
+void runUiSmoke(QGuiApplication&,QQuickWindow&,VehicleState&,MediaState&,QMediaPlayer&,QStringList&,bool native);

@@ -1,7 +1,7 @@
 #include "MusicSmoke.h"
 #include "MusicLibrary.h"
 #include "MusicFixture.h"
-#include "VehicleState.h"
+#include "media/MediaState.h"
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QQuickItem>
@@ -13,7 +13,7 @@
 #include <QtTest>
 #include <functional>
 #include <stdexcept>
-void runMusicSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &vehicle,QMediaPlayer &player,MusicLibrary &library,QStringList &warnings){
+void runMusicSmoke(QGuiApplication &app,QQuickWindow &window,MediaState &vehicle,QMediaPlayer &player,MusicLibrary &library,QStringList &warnings){
     window.setProperty("testMode",true);window.setProperty("clockText","16:28");
     QTimer::singleShot(1000,&app,[&]{
         const auto directory=qEnvironmentVariable("CAR_TERMINAL_MUSIC_OUTPUT","artifacts/music/native");QDir().mkpath(directory);const QString root=QFileInfo(directory+"/fixtures").absoluteFilePath(),audio=root+"/歌手/专辑/测试音源.wav";
@@ -30,8 +30,13 @@ void runMusicSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &vehic
                 require(warnings.isEmpty(),qPrintable(warnings.join('\n')));QFile report(directory+"/resume.json");require(report.open(QIODevice::WriteOnly),"resume evidence");report.write(QJsonDocument(QJsonObject{{"positionMs",player.position()},{"playing",vehicle.playing()},{"actualPlayerPaused",player.playbackState()!=QMediaPlayer::PlayingState}}).toJson());qInfo()<<"PASS real startup music resume, paused at"<<player.position();app.exit(0);return;
             }
             require(writeMusicFixture(audio),"write original metadata/audio fixture");QFile lrc(QFileInfo(audio).absolutePath()+"/测试音源.lrc");require(lrc.open(QIODevice::WriteOnly),"lyrics fixture");lrc.write(QStringLiteral("[00:00]音乐与旅途\n[00:03]窗外的光慢慢移动\n[00:06]这是本地歌词测试\n[00:10]进度与歌词同步\n[00:14]演示结束").toUtf8());lrc.close();
-            library.importFolder(QUrl::fromLocalFile(root));wait([&]{return !library.scanning();},"recursive scan");require(vehicle.tracks().size()==4,"nested file imported once");
-            click("tab3");click("trackRow3");wait([&]{return player.duration()>14000&&vehicle.trackTitle()=="Local Music Test";},"real decode and tagged title");require(library.current()["artist"]=="Cockpit Studio","actual artist metadata");
+            click("tab3");
+            const auto queueCaption=item("musicQueueButton")->property("text");
+            library.importFolder(QUrl::fromLocalFile(root));
+            require(library.scanning()&&item("musicQueueButton")->property("text")==queueCaption,
+                    "the queue button remains visible with the same caption during scanning");
+            wait([&]{return !library.scanning();},"recursive scan");require(vehicle.tracks().size()==4,"nested file imported once");
+            click("trackRow3");wait([&]{return player.duration()>14000&&vehicle.trackTitle()=="Local Music Test";},"real decode and tagged title");require(library.current()["artist"]=="Cockpit Studio","actual artist metadata");
             vehicle.setPlaying(false);vehicle.seek(6500);QTest::qWait(200);require(library.lyricIndex()==2,"seek synchronizes timed lyrics");capture("01-library-lyrics");
             click("favoriteCurrent");click("musicCategory");click("musicCategoryChoice1");require(library.category()=="favorites"&&library.rows().size()==1,"favorites filtering via combo UI");capture("02-favorites");click("musicCategory");click("musicCategoryChoice4");library.setGroup(root);require(library.rows().size()==1,"parent directory includes nested descendants");capture("03-folders");library.setCategory("all");library.setQuery("nothing matches");require(library.rows().isEmpty(),"search empty state");capture("04-search-empty");library.setQuery("");
             library.seekLyric(3);QTest::qWait(150);require(player.position()>=9900,"lyric jump seeks actual player");library.setLyricOffset(500);require(library.lyricOffset()==500,"lyric adjustment");

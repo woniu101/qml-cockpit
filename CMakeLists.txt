@@ -8,9 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick QuickControls2 Quick3D Svg Multimedia Test Network)
 qt_standard_project_setup(REQUIRES 6.8)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(VEHICLE_SOURCES src/VehicleState.cpp src/VehicleQueue.cpp src/VehicleMotion.cpp src/VehicleSimulation.cpp src/VehiclePreferences.cpp src/VehicleExternal.cpp src/VehicleSystem.cpp src/SystemStatus.cpp src/SystemStatus.h src/VehicleLink.cpp src/VehicleLink.h src/VehicleState.h)
+set(VEHICLE_SOURCES src/VehicleState.cpp src/VehicleMotion.cpp src/VehicleSimulation.cpp src/VehiclePreferences.cpp src/VehicleExternal.cpp src/VehicleSystem.cpp src/SystemStatus.cpp src/SystemStatus.h src/VehicleLink.cpp src/VehicleLink.h src/VehicleState.h)
 set(DEVICE_SOURCES src/AudioDevices.cpp src/AudioDevices.h src/AudioRoutePolicy.h src/BluetoothStatus.cpp src/BluetoothStatus.h src/BluetoothAudio.cpp src/BluetoothAudio.h)
-set(MUSIC_SOURCES src/MusicLibrary.cpp src/MusicLibraryScan.cpp src/MusicLibrary.h src/MusicFiles.cpp src/MusicFiles.h src/Lyrics.cpp src/Lyrics.h src/MusicSource.cpp src/MusicSource.h)
+set(MEDIA_STATE_SOURCES src/media/MediaState.cpp src/media/MediaState.h src/media/MusicQueue.cpp)
+set(MEDIA_RUNTIME_SOURCES src/media/MediaSession.cpp src/media/MediaSession.h src/media/RadioService.cpp src/media/RadioService.h src/media/RadioSourceResolver.cpp src/media/RadioSourceResolver.h src/media/VideoLibrary.cpp src/media/VideoLibrary.h)
+set(MEDIA_DIRECTORY_SOURCES src/media/MediaDirectory.cpp src/media/MediaDirectory.h)
+set(MUSIC_SOURCES ${MEDIA_STATE_SOURCES} ${MEDIA_DIRECTORY_SOURCES} src/MusicLibrary.cpp src/MusicLibraryScan.cpp src/MusicLibrary.h src/MusicFiles.cpp src/MusicFiles.h src/Lyrics.cpp src/Lyrics.h src/MusicSource.cpp src/MusicSource.h)
 qt_add_executable(MusicMediaProbe src/MusicMediaProbe.cpp src/MusicSource.cpp src/Lyrics.cpp)
 target_compile_options(MusicMediaProbe PRIVATE /utf-8)
 target_include_directories(MusicMediaProbe PRIVATE src)
@@ -21,9 +24,24 @@ target_link_libraries(MediaSessionProbe PRIVATE Qt6::Core)
 if(WIN32)
     target_link_libraries(MediaSessionProbe PRIVATE windowsapp ws2_32)
 endif()
-qt_add_executable(CarTerminal src/main.cpp src/UiSmoke.cpp src/UiSmoke.h src/SystemSmoke.cpp src/SystemSmoke.h src/LinkSmoke.cpp src/LinkSmoke.h src/DeviceSmoke.cpp src/DeviceSmoke.h src/MusicSmoke.cpp src/MusicSmoke.h src/MusicFixture.h ${MUSIC_SOURCES} ${DEVICE_SOURCES} ${VEHICLE_SOURCES} src/IconProvider.h)
+qt_add_executable(CarTerminal src/main.cpp src/UiSmoke.cpp src/UiSmoke.h src/SystemSmoke.cpp src/SystemSmoke.h src/LinkSmoke.cpp src/LinkSmoke.h src/DeviceSmoke.cpp src/DeviceSmoke.h src/MusicSmoke.cpp src/MusicSmoke.h src/MediaSmoke.cpp src/MediaSmoke.h src/MusicFixture.h src/VideoFixture.h ${MUSIC_SOURCES} ${MEDIA_RUNTIME_SOURCES} ${DEVICE_SOURCES} ${VEHICLE_SOURCES} src/IconProvider.h)
+target_sources(CarTerminal PRIVATE src/WeatherService.cpp src/WeatherService.h)
+set(ASSISTANT_SOURCES src/assistant/AssistantMedia.cpp src/assistant/AssistantMedia.h src/assistant/AssistantSpeech.cpp src/assistant/AssistantSpeech.h src/assistant/AssistantNumbers.h src/assistant/AssistantAudioInput.h)
+set(ASSISTANT_VEHICLE_SOURCES src/assistant/AssistantVehicle.cpp src/assistant/AssistantVehicle.h
+    src/assistant/AssistantVehicleSetting.cpp src/assistant/AssistantVehicleSetting.h
+    src/assistant/AssistantVehicleQuery.cpp src/assistant/AssistantVehicleQuery.h)
+set(ASSISTANT_NLU_SOURCES src/assistant/AssistantWorker.cpp src/assistant/AssistantWorker.h
+    src/assistant/AssistantNlu.cpp src/assistant/AssistantNlu.h)
+set(ASSISTANT_APPEARANCE_SOURCES src/assistant/AssistantAppearance.cpp src/assistant/AssistantAppearance.h)
+set(ASSISTANT_WAKE_SOURCES src/assistant/AssistantWake.cpp src/assistant/AssistantWake.h)
+target_sources(CarTerminal PRIVATE ${ASSISTANT_SOURCES} ${ASSISTANT_VEHICLE_SOURCES})
+target_sources(CarTerminal PRIVATE src/assistant/AssistantRuntime.cpp src/assistant/AssistantRuntime.h
+    ${ASSISTANT_NLU_SOURCES}
+    src/assistant/AssistantVoice.cpp src/assistant/AssistantVoice.h
+    ${ASSISTANT_APPEARANCE_SOURCES} ${ASSISTANT_WAKE_SOURCES})
 target_compile_options(CarTerminal PRIVATE /utf-8)
 target_include_directories(CarTerminal PRIVATE src)
+set_source_files_properties(qml/AppRoutes.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/EnergyVisual.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 qt_add_qml_module(CarTerminal
@@ -32,10 +50,11 @@ qt_add_qml_module(CarTerminal
     QML_FILES
         qml/TrackArtwork.qml qml/LyricsView.qml qml/SoftComboBox.qml qml/MusicManagerPanel.qml
         qml/SourcePanel.qml qml/SystemPanel.qml qml/BluetoothPanel.qml qml/AudioPanel.qml qml/SettingsPanel.qml qml/DemoPanel.qml qml/DrivingPanel.qml qml/DrivingPage.qml qml/DestinationPanel.qml qml/KeyboardPad.qml
-        qml/Main.qml qml/DemoController.qml qml/Theme.qml qml/Label.qml qml/Icon.qml qml/Surface.qml
+        qml/Main.qml qml/DemoController.qml qml/Theme.qml qml/Label.qml qml/Icon.qml qml/Surface.qml qml/WeatherPanel.qml qml/AssistantPanel.qml qml/AssistantVoicePanel.qml
+        qml/AssistantAvatar.qml qml/AssistantSettings.qml qml/AssistantAppearancePanel.qml qml/AssistantDiagnosticsPanel.qml qml/AssistantWakePanel.qml
         qml/UiButton.qml qml/SoftSlider.qml qml/Album.qml qml/StatusBar.qml
-        qml/BottomBar.qml qml/MusicCard.qml qml/HomePage.qml qml/MapView.qml
-        qml/NavigationPage.qml qml/VehiclePage.qml qml/MusicPage.qml qml/Overlays.qml
+        qml/BottomBar.qml qml/MediaCard.qml qml/HomePage.qml qml/MapView.qml
+        qml/NavigationPage.qml qml/VehiclePage.qml qml/MediaPage.qml qml/MusicPane.qml qml/PhoneMusicPane.qml qml/RadioPage.qml qml/VideoPage.qml qml/VideoFoldersPanel.qml qml/AppRoutes.qml qml/Overlays.qml
         qml/Legacy3D.qml qml/ActionButton.qml assets/car/CarConcept.qml
         qml/CornerSelector.qml qml/WindowControls.qml qml/DoorControls.qml qml/QuickControls.qml qml/ChargeControls.qml qml/ComfortControls.qml
         qml/VehicleScene.qml qml/HomeEnergyRow.qml qml/EnergyVisual.qml qml/ChargingField.qml qml/ChargingConnector.qml qml/FeedbackBanner.qml qml/NotificationsPanel.qml assets/sedan/Sedan.qml
@@ -44,6 +63,7 @@ qt_add_qml_module(CarTerminal
 file(GLOB_RECURSE UI_RESOURCES CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui" "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/*")
 list(TRANSFORM UI_RESOURCES PREPEND "assets/ui/")
 qt_add_resources(CarTerminal ui_assets PREFIX "/ui" BASE "assets/ui" FILES ${UI_RESOURCES})
+qt_add_resources(CarTerminal assistant_art PREFIX "/assistant" BASE "design/assistant/assets" FILES design/assistant/assets/character.png)
 file(GLOB_RECURSE CAR_RESOURCES CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/car/meshes/*"
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/car/maps/*"
@@ -58,7 +78,17 @@ endif()
 set_target_properties(CarTerminal PROPERTIES WIN32_EXECUTABLE TRUE)
 include(CTest)
 if(BUILD_TESTING)
-    qt_add_executable(MusicLibraryTests tests/MusicLibraryTests.cpp ${MUSIC_SOURCES} ${VEHICLE_SOURCES})
+    qt_add_executable(MediaSessionTests tests/MediaSessionTests.cpp ${MUSIC_SOURCES} ${MEDIA_RUNTIME_SOURCES}
+        ${ASSISTANT_SOURCES} ${ASSISTANT_VEHICLE_SOURCES} ${ASSISTANT_NLU_SOURCES} ${ASSISTANT_APPEARANCE_SOURCES} ${ASSISTANT_WAKE_SOURCES} ${VEHICLE_SOURCES})
+    target_compile_options(MediaSessionTests PRIVATE /utf-8)
+    target_include_directories(MediaSessionTests PRIVATE src)
+    target_link_libraries(MediaSessionTests PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Multimedia Qt6::Network Qt6::Test)
+    if(WIN32)
+        target_link_libraries(MediaSessionTests PRIVATE windowsapp iphlpapi)
+    endif()
+    add_test(NAME MediaSessionTests COMMAND MediaSessionTests -o -,txt)
+    set_tests_properties(MediaSessionTests PROPERTIES ENVIRONMENT "PATH=D:/Qt/6.12.0/msvc2022_64/bin\;$ENV{PATH};QT_QPA_PLATFORM=offscreen")
+    qt_add_executable(MusicLibraryTests tests/MusicLibraryTests.cpp ${MUSIC_SOURCES})
     target_compile_options(MusicLibraryTests PRIVATE /utf-8)
     target_include_directories(MusicLibraryTests PRIVATE src)
     target_link_libraries(MusicLibraryTests PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Multimedia Qt6::Network Qt6::Test)
@@ -76,7 +106,7 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME BluetoothAudioTests COMMAND BluetoothAudioTests)
     set_tests_properties(BluetoothAudioTests PROPERTIES ENVIRONMENT "PATH=D:/Qt/6.12.0/msvc2022_64/bin\;$ENV{PATH}")
-    qt_add_executable(VehicleStateTests tests/VehicleStateTests.cpp ${VEHICLE_SOURCES})
+    qt_add_executable(VehicleStateTests tests/VehicleStateTests.cpp ${VEHICLE_SOURCES} ${ASSISTANT_VEHICLE_SOURCES})
     target_compile_options(VehicleStateTests PRIVATE /utf-8)
     target_include_directories(VehicleStateTests PRIVATE src)
     target_link_libraries(VehicleStateTests PRIVATE Qt6::Core Qt6::Qml Qt6::Test Qt6::Network)

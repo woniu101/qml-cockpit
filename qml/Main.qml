@@ -9,7 +9,7 @@ ApplicationWindow {
     visible: true; color: Theme.background
     title: "Car Terminal · 智能座舱演示"
     font.family: "Microsoft YaHei UI"
-    property int page: 0
+    property int page: AppRoutes.Home
     property string popup: ""
     property string toastMessage: ""
     property string toastKind: "info"
@@ -36,11 +36,23 @@ ApplicationWindow {
         toastKind=kind;toastMessage=message;lastNotification=message
         toastTimer.interval=kind==="warning"?4200:kind==="success"?1800:2200;toastTimer.restart()
     }
-    function showPage(index){page=index;popup=""}
-    function openPopup(name){popup=name}
-    function inspectPart(part){showPage(2);vehiclePage.inspectPart(part)}
+    function showPage(index){if(page===AppRoutes.MediaCenter&&index!==AppRoutes.MediaCenter)Media.videoPageLeft();page=index;popup=""}
+    function showMedia(kind){showPage(AppRoutes.MediaCenter);mediaPage.openSource(kind)}
+    function openPopup(name){Media.fullscreen=false;popup=name}
+    Connections {
+        target: AssistantWake
+        function onActivated() { shell.openPopup("assistant") }
+    }
+    Connections {
+        target: Assistant
+        function onViewRequested(source) {
+            shell.showMedia(source)
+            shell.notify(Assistant.message)
+        }
+    }
+    function inspectPart(part){showPage(AppRoutes.Vehicle);vehiclePage.inspectPart(part)}
     function navigateTo(destination){if(Vehicle.startNavigation(destination)){page=1;popup=""}}
-    function enterDriving(){pendingDrivingView=true;if(Vehicle.gear!=="D"||Vehicle.speed<=0)Vehicle.startDriving();if(Vehicle.externalReady&&Vehicle.gear==="D"&&Vehicle.speed>0){pendingDrivingView=false;showPage(4)}}
+    function enterDriving(){pendingDrivingView=true;if(Vehicle.gear!=="D"||Vehicle.speed<=0)Vehicle.startDriving();if(Vehicle.externalReady&&Vehicle.gear==="D"&&Vehicle.speed>0){pendingDrivingView=false;showPage(AppRoutes.Driving)}}
     function toggleFullScreen(){visibility=visibility===Window.FullScreen?Window.Windowed:Window.FullScreen}
     function toggleDemo(){if(demo.running)demo.stop();else demo.start()}
     function demoPause(){demo.paused=!demo.paused}
@@ -56,14 +68,17 @@ ApplicationWindow {
     }
     Component.onCompleted: updateClock()
     Shortcut { sequence: "F11"; onActivated: shell.toggleFullScreen() }
-    Shortcut { sequence: "Escape"; onActivated: {if(shell.popup!=="")shell.popup="";else if(demo.running)demo.stop();else if(shell.visibility===Window.FullScreen)shell.visibility=Window.Windowed} }
+    Shortcut { sequence: "Escape"; onActivated: {if(Media.fullscreen)Media.fullscreen=false;else if(shell.popup!=="")shell.popup="";else if(demo.running)demo.stop();else if(shell.visibility===Window.FullScreen)shell.visibility=Window.Windowed} }
     Timer { interval: 1000; repeat: true; running: true; onTriggered: {shell.updateClock();if(!shell.testMode&&!(demo.running&&demo.paused))Vehicle.advanceSimulation(1)} }
     Timer { id: toastTimer; onTriggered: {shell.toastMessage="";if(shell.feedbackQueue.length){const next=shell.feedbackQueue[0];shell.feedbackQueue=shell.feedbackQueue.slice(1);shell.notify(next.message,next.kind)}} }
     DemoController { id: demo; shell: shell }
     Connections {
         target: Vehicle
         function onToast(message,kind){if(kind==="warning")shell.pendingDrivingView=false;shell.notify(message,kind)}
-        function onChanged(){if(shell.pendingDrivingView&&Vehicle.externalReady&&Vehicle.gear==="D"&&Vehicle.speed>0){shell.pendingDrivingView=false;shell.showPage(4)}}
+        function onChanged(){
+            if (!Vehicle.parked && shell.popup === "assistantSettings") shell.popup = ""
+            if(shell.pendingDrivingView&&Vehicle.externalReady&&Vehicle.gear==="D"&&Vehicle.speed>0){shell.pendingDrivingView=false;shell.showPage(AppRoutes.Driving)}
+        }
         function onVisualReset(){shell.toastMessage="";shell.feedbackQueue=[];toastTimer.stop()}
     }
     Connections { target: VehicleConnection; function onStatusChanged(){if(shell.sourceWasReady&&Vehicle.externalMode&&!VehicleConnection.ready){shell.pendingDrivingView=false;shell.notify("车辆数据连接中断，控制已暂停","warning")}shell.sourceWasReady=VehicleConnection.ready} }
@@ -71,13 +86,14 @@ ApplicationWindow {
         id: canvas; objectName: "designCanvas"
         width: 1600; height: 900; anchors.centerIn: parent; scale: Math.min(shell.width/1600,shell.height/900)
         Rectangle { anchors.fill: parent; gradient: Gradient { orientation: Gradient.Horizontal; GradientStop {position:0;color:Theme.top} GradientStop {position:1;color:Theme.bottom} } }
-        HomePage { shell: shell; visible: shell.page===0 }
-        NavigationPage { shell: shell; visible: shell.page===1 }
-        VehiclePage { id: vehiclePage; objectName: "vehiclePage"; shell: shell; visible: shell.page===2 }
-        MusicPage { shell: shell; visible: shell.page===3 }
-        DrivingPage { shell: shell; visible: shell.page===4 }
+        HomePage { shell: shell; visible: shell.page===AppRoutes.Home }
+        NavigationPage { shell: shell; visible: shell.page===AppRoutes.Navigation }
+        VehiclePage { id: vehiclePage; objectName: "vehiclePage"; shell: shell; visible: shell.page===AppRoutes.Vehicle }
+        MediaPage { id:mediaPage; shell:shell; visible:shell.page===AppRoutes.MediaCenter; z:Media.fullscreen?50:0 }
+        DrivingPage { shell: shell; visible: shell.page===AppRoutes.Driving }
         StatusBar { shell: shell; z: 5 }
         BottomBar { y: 790; shell: shell; z: 10 }
+        AssistantPanel { shell: shell; z: 15 }
         Overlays { shell: shell; z: 20 }
         FeedbackBanner {
             objectName: "feedbackBanner"; z: 30; x: (1600-width)/2; y: 83

@@ -34,7 +34,7 @@ Item {
             Icon { x: 17; y: 22; name: Vehicle.navigationActive?"nav":"car"; width: 26; height: 26; tint: Theme.green }
             Label { objectName: "driveRouteLabel"; x: 58; y: 10; width: 720; text: Vehicle.navigationActive?"导航至 "+Vehicle.destination:"自由行驶 · 未设置目的地"; font.pixelSize: 21; elide: Text.ElideRight }
             Label { x: 58; y: 40; width: 720; text: Vehicle.navigationActive?Vehicle.remainingKm.toFixed(1)+" km · "+Vehicle.remainingMinutes+" 分钟 · "+Vehicle.laneHint:"可直接调整车速，路线与挡位分别控制"; font.pixelSize: 15; color: Theme.muted; elide: Text.ElideRight }
-            UiButton { objectName: "driveNavigation"; x: 897; y: 12; width: 193; height: 46; text: Vehicle.navigationActive?"查看导航地图":"选择目的地"; textSize: 18; iconName: "nav"; onClicked: {if(Vehicle.navigationActive)drivingPage.shell.showPage(1);else drivingPage.shell.openPopup("destination")} }
+            UiButton { objectName: "driveNavigation"; x: 897; y: 12; width: 193; height: 46; text: Vehicle.navigationActive?"查看导航地图":"选择目的地"; textSize: 18; iconName: "nav"; onClicked: {if(Vehicle.navigationActive)drivingPage.shell.showPage(AppRoutes.Navigation);else drivingPage.shell.openPopup("destination")} }
         }
     }
     Surface {
@@ -51,6 +51,6 @@ Item {
         UiButton { objectName: "driveResume"; x: 700; y: 50; width: 225; height: 60; text: Vehicle.speed>0?"恢复 40 km/h":"开始行驶 40 km/h"; textSize: 19; primary: true; onClicked: Vehicle.startDriving() }
         UiButton { objectName: "drivePark"; x: 945; y: 50; width: 205; height: 60; text: "挂 P 挡驻车"; textSize: 19; selected: Vehicle.parked; onClicked: Vehicle.parkVehicle() }
         UiButton { objectName: "drivePageFastForward"; x: 1170; y: 50; width: 182; height: 60; text: "快进 1 分钟"; textSize: 18; enabled: Vehicle.speed>0; onClicked: Vehicle.advanceSimulation(60) }
-        UiButton { x: 1370; y: 50; width: 115; height: 60; text: "车辆控制"; textSize: 18; onClicked: drivingPage.shell.showPage(2) }
+        UiButton { x: 1370; y: 50; width: 115; height: 60; text: "车辆控制"; textSize: 18; onClicked: drivingPage.shell.showPage(AppRoutes.Vehicle) }
     }
 }

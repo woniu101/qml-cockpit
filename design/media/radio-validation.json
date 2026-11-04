@@ -1,0 +1,108 @@
+{
+  "allPassed": true,
+  "audioMuted": true,
+  "audioRecorded": false,
+  "capturedAt": "2026-11-03T17:06:18+08:00",
+  "fixtureServerStarted": true,
+  "http404Reported": true,
+  "pendingLoadCancelled": true,
+  "productionIntegrated": false,
+  "stations": [
+    {
+      "decodeWaitMs": 2111,
+      "decodedAudio": true,
+      "decodedBuffers": 20,
+      "decodedFrames": 20480,
+      "error": "",
+      "host": "ngcdn001.cnr.cn",
+      "id": "cnr-1",
+      "mediaStates": [
+        1,
+        2,
+        4,
+        5,
+        2,
+        0
+      ],
+      "name": "中国之声",
+      "originPage": "https://www.cnr.cn/",
+      "passed": true,
+      "seekableReported": false,
+      "stoppedAndCleared": true,
+      "temporaryQuery": true,
+      "transport": "HLS"
+    },
+    {
+      "decodeWaitMs": 602,
+      "decodedAudio": true,
+      "decodedBuffers": 20,
+      "decodedFrames": 20480,
+      "error": "",
+      "host": "ngcdn002.cnr.cn",
+      "id": "cnr-2",
+      "mediaStates": [
+        1,
+        2,
+        4,
+        5,
+        2,
+        0
+      ],
+      "name": "经济之声",
+      "originPage": "https://www.cnr.cn/",
+      "passed": true,
+      "seekableReported": false,
+      "stoppedAndCleared": true,
+      "temporaryQuery": true,
+      "transport": "HLS"
+    },
+    {
+      "decodeWaitMs": 709,
+      "decodedAudio": true,
+      "decodedBuffers": 20,
+      "decodedFrames": 20480,
+      "error": "",
+      "host": "ngcdn003.cnr.cn",
+      "id": "cnr-4",
+      "mediaStates": [
+        1,
+        2,
+        4,
+        5,
+        2,
+        0
+      ],
+      "name": "音乐之声",
+      "originPage": "https://www.cnr.cn/",
+      "passed": true,
+      "seekableReported": false,
+      "stoppedAndCleared": true,
+      "temporaryQuery": true,
+      "transport": "HLS"
+    },
+    {
+      "decodeWaitMs": 2388,
+      "decodedAudio": true,
+      "decodedBuffers": 20,
+      "decodedFrames": 20480,
+      "error": "",
+      "host": "rthkradio1-live.akamaized.net",
+      "id": "rthk-1",
+      "mediaStates": [
+        1,
+        2,
+        4,
+        5,
+        2,
+        0
+      ],
+      "name": "香港电台第一台",
+      "originPage": "https://www.rthk.hk/radio/radio1",
+      "passed": true,
+      "seekableReported": false,
+      "stoppedAndCleared": true,
+      "temporaryQuery": false,
+      "transport": "HLS"
+    }
+  ]
+}

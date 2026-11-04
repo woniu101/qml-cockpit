@@ -1,5 +1,6 @@
 #include "MusicFiles.h"
 #include "MusicSource.h"
+#include "media/MediaDirectory.h"
 #include <QFile>
 #include <QStringDecoder>
 #include <QFileInfo>
@@ -45,13 +46,7 @@ QVariantMap prefixedId3Tags(const QString &path,const QString &cache){
     }return tags;
 }
 }
-QString musicPathKey(const QString &path){
-    QFileInfo file(path);QString key=QDir::cleanPath(file.canonicalFilePath().isEmpty()?file.absoluteFilePath():file.canonicalFilePath());
-#ifdef Q_OS_WIN
-    key=key.toCaseFolded();
-#endif
-    return key;
-}
+QString musicPathKey(const QString &path){return mediaPathKey(path);}
 bool supportedMusicFile(const QString &path){return QStringList{"mp3","wav","flac","m4a","ogg","aac","opus","wma"}.contains(QFileInfo(path).suffix().toLower());}
 QString sidecarCover(const QString &path){
     const QFileInfo file(path);const QString dir=file.absolutePath()+"/",base=dir+file.completeBaseName();

@@ -22,7 +22,7 @@ private slots:
         const auto target=v.chargeTarget();v.setChargeTarget(100);v.stopCharging();v.togglePlug();v.togglePort();v.advanceSimulation(3600);
         QCOMPARE(v.chargeTarget(),target);QVERIFY(v.charging());QVERIFY(v.plugged());QCOMPARE(v.batteryPercent(),64.0);
         host.applyPowerSample(battery(92,0,1));QVERIFY(!v.charging());QVERIFY(v.plugged());QCOMPARE(v.batteryPercent(),92.0);
-        v.setVolume(51);v.setSourceMode("internal");QCOMPARE(v.batteryPercent(),initial);QCOMPARE(v.volume(),51);QVERIFY(!v.plugged());QVERIFY(v.chargeControlAvailable());
+        v.setSourceMode("internal");QCOMPARE(v.batteryPercent(),initial);QVERIFY(!v.plugged());QVERIFY(v.chargeControlAvailable());
     }
     void noBatteryFallbackAndLaterDetection(){
         SystemStatus host(nullptr,false);host.applyPowerSample(battery(255,128,1));VehicleState v(nullptr,&host);

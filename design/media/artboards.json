@@ -1,0 +1,74 @@
+[
+  {
+    "id": "01-music",
+    "title": "音乐 · 本地音乐库",
+    "svg": "screens/01-music.svg",
+    "png": "screens/01-music.png"
+  },
+  {
+    "id": "02-radio",
+    "title": "电台 · 正在收听",
+    "svg": "screens/02-radio.svg",
+    "png": "screens/02-radio.png"
+  },
+  {
+    "id": "03-video-library",
+    "title": "视频 · 本地视频库",
+    "svg": "screens/03-video-library.svg",
+    "png": "screens/03-video-library.png"
+  },
+  {
+    "id": "04-video-player",
+    "title": "视频 · 宽屏播放",
+    "svg": "screens/04-video-player.svg",
+    "png": "screens/04-video-player.png"
+  },
+  {
+    "id": "05-radio-connecting",
+    "title": "电台 · 连接与取消",
+    "svg": "screens/05-radio-connecting.svg",
+    "png": "screens/05-radio-connecting.png"
+  },
+  {
+    "id": "06-radio-offline",
+    "title": "电台 · 断线与恢复",
+    "svg": "screens/06-radio-offline.svg",
+    "png": "screens/06-radio-offline.png"
+  },
+  {
+    "id": "07-video-empty",
+    "title": "视频 · 初次导入",
+    "svg": "screens/07-video-empty.svg",
+    "png": "screens/07-video-empty.png"
+  },
+  {
+    "id": "08-video-parked-only",
+    "title": "视频 · 驻车限制",
+    "svg": "screens/08-video-parked-only.svg",
+    "png": "screens/08-video-parked-only.png"
+  },
+  {
+    "id": "09-radio-night",
+    "title": "电台 · 夜间模式",
+    "svg": "screens/09-radio-night.svg",
+    "png": "screens/09-radio-night.png"
+  },
+  {
+    "id": "10-home-radio",
+    "title": "首页 · 电台媒体卡",
+    "svg": "screens/10-home-radio.svg",
+    "png": "screens/10-home-radio.png"
+  },
+  {
+    "id": "11-phone-bluetooth",
+    "title": "媒体 · 手机蓝牙",
+    "svg": "screens/11-phone-bluetooth.svg",
+    "png": "screens/11-phone-bluetooth.png"
+  },
+  {
+    "id": "12-video-fullscreen",
+    "title": "视频 · 沉浸全屏",
+    "svg": "screens/12-video-fullscreen.svg",
+    "png": "screens/12-video-fullscreen.png"
+  }
+]

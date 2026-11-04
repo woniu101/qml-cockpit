@@ -26,7 +26,7 @@ QVariantList AudioDevices::outputs() const {
 }
 QString AudioDevices::statusText() const {
     if(!available())return QStringLiteral("未检测到音频输出，请连接扬声器或耳机");
-    return (followDefault()?QStringLiteral("跟随系统默认 · "):QStringLiteral("本地音乐输出 · "))+activeName();
+    return (followDefault()?QStringLiteral("跟随系统默认 · "):QStringLiteral("媒体音频输出 · "))+activeName();
 }
 void AudioDevices::saveSelection(){if(qEnvironmentVariableIsSet("CAR_TERMINAL_NO_SETTINGS"))return;QSettings settings;settings.setValue("audio/outputId",m_selected);}
 bool AudioDevices::selectOutput(const QString &id){

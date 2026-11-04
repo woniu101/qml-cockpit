@@ -7,9 +7,33 @@ Item {
         // Preserve the shared alignment box; padding shifts the glyphs 24px right and 2px down.
         Label { objectName: "statusClock"; width: 112; height: 64; leftPadding: 24; topPadding: 4; verticalAlignment: Text.AlignVCenter; text: shell.clockText; font.pixelSize: 26; font.weight: Font.Normal; font.features: {"tnum": 1}; color: Theme.muted }
         Rectangle { x: 128; y: 22; width: 1; height: 20; color: Theme.line }
-        Icon { x: 150; y: 21; width: 22; height: 22; name: Vehicle.night?"moon":"sun"; tint: Theme.green }
-        Label { x: 184; width: 46; height: 64; verticalAlignment: Text.AlignVCenter; text: "24°"; font.pixelSize: 20; color: Theme.muted }
-        Label { x: 244; width: 58; height: 64; verticalAlignment: Text.AlignVCenter; text: "上海"; font.pixelSize: 20; color: Theme.muted }
+        UiButton {
+            objectName:"weatherButton"
+            x:140; y:10; width:174; height:44; padding:0; quiet:true
+            caption:Weather.city === "" ? "选择城市" : Weather.city + " · " + Weather.status
+            onClicked:shell.openPopup("weather")
+            contentItem:Item {
+                Icon {
+                    x:10; y:11; width:22; height:22; tint:Theme.green
+                    name:Weather.refreshing && Weather.temperature === "" ? "refresh" : Weather.icon
+                    RotationAnimation on rotation {
+                        from:0; to:360; duration:1000; loops:Animation.Infinite
+                        running:Weather.refreshing && Weather.temperature === ""
+                    }
+                    onNameChanged: if (name !== "refresh") rotation = 0
+                }
+                Label {
+                    x:44; width:49; height:44; visible:Weather.temperature !== ""
+                    verticalAlignment:Text.AlignVCenter; text:Weather.temperature
+                    font.pixelSize:20; color:Theme.muted
+                }
+                Label {
+                    x:Weather.temperature === "" ? 44 : 104; width:174-x-6; height:44
+                    verticalAlignment:Text.AlignVCenter; text:Weather.city||"选择城市"
+                    textFormat:Text.PlainText; elide:Text.ElideRight; font.pixelSize:20; color:Theme.muted
+                }
+            }
+        }
     }
     UiButton {
         objectName: "simulatorButton"; x: 370; y: 10; width: 174; height: 44

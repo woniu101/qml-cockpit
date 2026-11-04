@@ -9,7 +9,7 @@
 #include "Lyrics.h"
 #include "MusicLibrary.h"
 #include "MusicFiles.h"
-#include "VehicleState.h"
+#include "media/MediaState.h"
 #include "MusicFixture.h"
 #include "MusicSource.h"
 
@@ -37,35 +37,35 @@ private slots:
         QFile lyrics(QFileInfo(a).absolutePath()+"/one.lrc");QVERIFY(lyrics.open(QIODevice::WriteOnly));lyrics.write("[00:01]first\n[00:03]second");lyrics.close();
         QImage cover(20,20,QImage::Format_RGB32);cover.fill(Qt::green);QVERIFY(cover.save(QFileInfo(a).absolutePath()+"/cover.png"));
         {
-            VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);library.importFolder(QUrl::fromLocalFile(root));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),30000);QCOMPARE(state.tracks().size(),5);
+            MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);library.importFolder(QUrl::fromLocalFile(root));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),30000);QCOMPARE(state.tracks().size(),5);
             library.importFiles({QUrl::fromLocalFile(a),QUrl::fromLocalFile(b)});QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),30000);QCOMPARE(state.tracks().size(),5);
             int index=-1;for(int i=3;i<state.tracks().size();++i)if(QUrl(state.tracks()[i].toMap()["url"].toString()).toLocalFile()==a)index=i;QVERIFY(index>=3);
             library.toggleFavorite(index);state.selectTrack(index);state.setPlaying(false);state.updateDuration(15000);state.updatePosition(2300);QCOMPARE(library.lyrics().size(),2);QCOMPARE(library.lyricIndex(),0);
             library.setLyricOffset(500);state.updatePosition(3200);QCOMPARE(library.lyricIndex(),0);state.updatePosition(3600);QCOMPARE(library.lyricIndex(),1);
-            QSignalSpy seeks(&state,&VehicleState::seekRequested);library.seekLyric(0);QCOMPARE(seeks.last()[0].toLongLong(),1500);
+            QSignalSpy seeks(&state,&MediaState::seekRequested);library.seekLyric(0);QCOMPARE(seeks.last()[0].toLongLong(),1500);
             library.setCategory("favorites");QCOMPARE(library.rows().size(),1);library.setQuery("nomatch");QVERIFY(library.rows().isEmpty());library.setQuery("");library.setCategory("folder");library.setGroup(root);QCOMPARE(library.rows().size(),2);
             QVERIFY(!library.current()["cover"].toString().isEmpty());library.save();
         }
         QVERIFY(QFile::remove(a));
         {
-            VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QCOMPARE(state.tracks().size(),5);QVERIFY(!state.playing());QCOMPARE(qint64(state.position()),3600);QVERIFY(!library.current()["available"].toBool());QVERIFY(library.current()["favorite"].toBool());QCOMPARE(library.lyricOffset(),500);
+            MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QCOMPARE(state.tracks().size(),5);QVERIFY(!state.playing());QCOMPARE(qint64(state.position()),3600);QVERIFY(!library.current()["available"].toBool());QVERIFY(library.current()["favorite"].toBool());QCOMPARE(library.lyricOffset(),500);
             library.remove(state.track());QCOMPARE(state.tracks().size(),4);QVERIFY(!state.playing());wave(a);library.rescan();QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),30000);QCOMPARE(state.tracks().size(),4);QVERIFY(QFileInfo::exists(a));
         }
     }
     void cancelAndCorruptStorePreserved(){
         QTemporaryDir temp;const auto store=temp.path()+"/bad.json";QFile file(store);QVERIFY(file.open(QIODevice::WriteOnly));file.write("broken cache");file.close();
-        VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QVERIFY(library.scanText().contains(QStringLiteral("格式异常")));library.save();QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("broken cache"));
+        MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QVERIFY(library.scanText().contains(QStringLiteral("格式异常")));library.save();QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("broken cache"));
         const auto root=temp.path()+"/music";for(int i=0;i<8;++i)wave(root+"/"+QString::number(i)+".wav");library.importFolder(QUrl::fromLocalFile(root));library.cancelScan();QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);QVERIFY(library.scanText().contains(QStringLiteral("停止")));
     }
     void actualMetadataAndEmbeddedArtwork(){
-        QTemporaryDir temp;const auto path=temp.path()+"/song.wav";QVERIFY(writeMusicFixture(path));VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,temp.path()+"/library.json");
+        QTemporaryDir temp;const auto path=temp.path()+"/song.wav";QVERIFY(writeMusicFixture(path));MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,temp.path()+"/library.json");
         library.importFiles({QUrl::fromLocalFile(path)});QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);QCOMPARE(state.tracks().size(),4);state.selectTrack(3);state.setPlaying(false);player.setSource(QUrl::fromLocalFile(path));
         QTRY_VERIFY_WITH_TIMEOUT(player.mediaStatus()==QMediaPlayer::LoadedMedia||player.mediaStatus()==QMediaPlayer::BufferedMedia,10000);library.flushMetadata();
         QCOMPARE(library.current()["title"].toString(),"Local Music Test");QCOMPARE(library.current()["artist"].toString(),"Cockpit Studio");QCOMPARE(library.current()["album"].toString(),"Offline Sessions");
         const QImage cover(QUrl(library.current()["cover"].toString()).toLocalFile());QVERIFY(!cover.isNull());QVERIFY(cover.pixelColor(0,0).green()>cover.pixelColor(0,0).red());QVERIFY(!state.playing());
     }
     void queueScopeShuffleHistoryAndStableUrls(){
-        QTemporaryDir temp;VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player);
+        QTemporaryDir temp;MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player);
         QVariantList imports;for(int i=0;i<4;++i){const auto path=temp.path()+"/"+QString::number(i)+".wav";wave(path);imports<<QUrl::fromLocalFile(path);}
         library.importFiles(imports);QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);QCOMPARE(state.tracks().size(),7);
         for(int index:{3,5,6})library.toggleFavorite(index);library.setCategory("favorites");library.setSort("added");library.playFromView(3);
@@ -80,14 +80,14 @@ private slots:
     }
     void removeRootsPreservesSharedManualAndFiles(){
         QTemporaryDir temp;const auto root=temp.path()+"/root",sub=root+"/nested",a=root+"/a.wav",b=sub+"/b.wav",c=root+"/c.wav",store=temp.path()+"/library.json";wave(a);wave(b);wave(c);
-        {VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);
+        {MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);
             library.importFolder(QUrl::fromLocalFile(root));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);library.importFolder(QUrl::fromLocalFile(sub));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);library.importFiles({QUrl::fromLocalFile(c)});QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);QCOMPARE(state.tracks().size(),6);
             library.removeRoot(root);QCOMPARE(library.roots(),QStringList{sub});QCOMPARE(state.tracks().size(),5);library.removeRoot(sub);QVERIFY(library.roots().isEmpty());QCOMPARE(state.tracks().size(),4);QCOMPARE(QUrl(state.tracks()[3].toMap()["url"].toString()).toLocalFile(),c);QVERIFY(QFileInfo::exists(a)&&QFileInfo::exists(b)&&QFileInfo::exists(c));library.save();
         }
-        {VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QVERIFY(library.roots().isEmpty());QCOMPARE(state.tracks().size(),4);}
+        {MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QVERIFY(library.roots().isEmpty());QCOMPARE(state.tracks().size(),4);}
     }
     void watcherFindsNestedFilesAndHandlesDetachRecovery(){
-        QTemporaryDir temp;const auto root=temp.path()+"/disk",audio=root+"/new/nested/music.wav";QVERIFY(QDir().mkpath(root));VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player);
+        QTemporaryDir temp;const auto root=temp.path()+"/disk",audio=root+"/new/nested/music.wav";QVERIFY(QDir().mkpath(root));MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player);
         library.importFolder(QUrl::fromLocalFile(root));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);QCOMPARE(state.tracks().size(),3);wave(audio);
         QTRY_COMPARE_WITH_TIMEOUT(state.tracks().size(),4,15000);QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);library.playFromView(3);QVERIFY(state.playing());const auto url=state.trackUrl();
         QVERIFY(QFile::remove(audio));QTRY_VERIFY_WITH_TIMEOUT(!state.playing(),10000);QTRY_VERIFY_WITH_TIMEOUT(!library.current()["available"].toBool(),10000);QCOMPARE(state.trackUrl(),url);
@@ -99,18 +99,18 @@ private slots:
     }
     void scopedQueuePersistsPaused(){
         QTemporaryDir temp;const auto store=temp.path()+"/library.json";QStringList expected;
-        {VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QVariantList urls;for(int i=0;i<3;++i){const auto path=temp.path()+"/"+QString::number(i)+".wav";wave(path);urls<<QUrl::fromLocalFile(path);}library.importFiles(urls);QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);
+        {MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QVariantList urls;for(int i=0;i<3;++i){const auto path=temp.path()+"/"+QString::number(i)+".wav";wave(path);urls<<QUrl::fromLocalFile(path);}library.importFiles(urls);QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);
             library.toggleFavorite(3);library.toggleFavorite(5);library.setCategory("favorites");library.setSort("added");library.playFromView(3);expected=state.playQueue();state.setPlaying(false);library.save();}
-        {VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QCOMPARE(state.playQueue(),expected);QVERIFY(!state.playing());state.nextTrack();QCOMPARE(state.trackUrl(),expected[1]);}
+        {MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player,nullptr,store);QCOMPARE(state.playQueue(),expected);QVERIFY(!state.playing());state.nextTrack();QCOMPARE(state.trackUrl(),expected[1]);}
     }
     void queueEditsPreserveHistoryAndLibrary(){
-        VehicleState state;const auto original=state.playQueue();state.setPlayMode("shuffle");state.nextTrack();const auto second=state.trackUrl();state.nextTrack(-1);const auto first=state.trackUrl();
+        MediaState state;const auto original=state.playQueue();state.setPlayMode("shuffle");state.nextTrack();const auto second=state.trackUrl();state.nextTrack(-1);const auto first=state.trackUrl();
         const int before=state.playQueue().indexOf(second);state.moveQueueTrack(second,-1);QCOMPARE(state.playQueue().indexOf(second),before-1);state.nextTrack();QCOMPARE(state.trackUrl(),second);state.nextTrack(-1);QCOMPARE(state.trackUrl(),first);
         state.removeQueueTrack(first);QCOMPARE(state.playQueue().size(),3);state.removeQueueTrack(second);QCOMPARE(state.playQueue().size(),2);QCOMPARE(state.tracks().size(),3);state.nextTrack();QVERIFY(state.trackUrl()!=second);QVERIFY(original.contains(state.trackUrl()));
     }
     void relocationKeepsQueueAndExcludesOldPath(){
         QTemporaryDir temp;const auto root=temp.path()+"/root",a=root+"/a.wav",b=root+"/b.wav",replacement=temp.path()+"/moved.wav";wave(a);wave(b);wave(replacement);
-        VehicleState state;QMediaPlayer player;MusicLibrary library(&state,&player);library.importFolder(QUrl::fromLocalFile(root));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);
+        MediaState state;QMediaPlayer player;MusicLibrary library(&state,&player);library.importFolder(QUrl::fromLocalFile(root));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);
         library.setCategory("folder");library.setGroup(root);library.playFromView(3);const auto before=state.playQueue();QCOMPARE(before.size(),2);const auto expected=QUrl::fromLocalFile(replacement).toString();
         library.relocate(3,QUrl::fromLocalFile(replacement));QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);QCOMPARE(state.tracks().size(),5);QCOMPARE(state.playQueue()[0],expected);QCOMPARE(state.playQueue()[1],before[1]);QCOMPARE(state.trackUrl(),expected);QVERIFY(!state.playing());
         library.rescan();QTRY_VERIFY_WITH_TIMEOUT(!library.scanning(),15000);QCOMPARE(state.tracks().size(),5);QVERIFY(!state.playQueue().contains(before[0]));QVERIFY(QFileInfo::exists(a));

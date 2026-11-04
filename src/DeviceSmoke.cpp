@@ -1,7 +1,7 @@
 #include "DeviceSmoke.h"
 #include "AudioDevices.h"
 #include "BluetoothStatus.h"
-#include "VehicleState.h"
+#include "media/MediaState.h"
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QQuickItem>
@@ -32,7 +32,7 @@ public:
 }
 BluetoothAudio::Factory deviceReceiverFixture(){return []{return std::make_unique<UiReceiverFixture>();};}
 
-void runDeviceSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &vehicle,QMediaPlayer &player,AudioDevices &outputs,BluetoothStatus &bluetooth,BluetoothAudio &receiver,QStringList &warnings){
+void runDeviceSmoke(QGuiApplication &app,QQuickWindow &window,MediaState &vehicle,QMediaPlayer &player,AudioDevices &outputs,BluetoothStatus &bluetooth,BluetoothAudio &receiver,QStringList &warnings){
     const auto realDevices=QMediaDevices::audioOutputs();const auto realDefault=QMediaDevices::defaultAudioOutput();
     outputs.setSamplingEnabled(false);outputs.applyDevices(realDevices,realDefault);bluetooth.setSamplingEnabled(false);window.setProperty("testMode",true);window.setProperty("clockText","16:28");
     QTimer::singleShot(1000,&app,[&app,&window,&vehicle,&player,&outputs,&bluetooth,&receiver,&warnings,realDevices,realDefault]{
@@ -77,7 +77,7 @@ void runDeviceSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &vehi
                 click("closePopup");
             }
             require(warnings.isEmpty(),qPrintable(warnings.join('\n')));
-            QFile report(directory+"/verification.json");require(report.open(QIODevice::WriteOnly),"device evidence");report.write(QJsonDocument(QJsonObject{{"actualOutputCount",realDevices.size()},{"actualRoutesChecked",actualRoutes},{"routeMatches",outputs.routeMatches()},{"bluetoothStates","fixtures"},{"phoneReceiver","fixture; real local-player pause/guard and output-removal integration"},{"hotplugTopology","fixtures using actual QAudioDevice objects"},{"automaticSound","muted"}}).toJson());
+            QFile report(directory+"/verification.json");require(report.open(QIODevice::WriteOnly),"device evidence");report.write(QJsonDocument(QJsonObject{{"actualOutputCount",realDevices.size()},{"actualRoutesChecked",actualRoutes},{"routeMatches",outputs.routeMatches()},{"bluetoothStates","fixtures"},{"phoneReceiver",realDevices.isEmpty()?"skipped; no audio output":"fixture; real local-player pause/guard and output-removal integration"},{"hotplugTopology","fixtures using actual QAudioDevice objects"},{"automaticSound","muted"}}).toJson());
             qInfo()<<"PASS devices UI: Bluetooth states, pairing distinction, actual Qt audio routes, output fallback, no auto-play and minimum window";app.exit(0);
         }catch(const std::exception &error){window.grabWindow().save(directory+"/failure.png");qCritical()<<"DEVICES UI FAIL:"<<error.what();app.exit(2);}
     });

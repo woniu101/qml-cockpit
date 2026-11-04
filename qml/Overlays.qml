@@ -2,17 +2,19 @@ import QtQuick
 Item {
     id: overlay
     required property var shell
-    anchors.fill:parent;visible:shell.popup!==""
+    anchors.fill:parent;visible:shell.popup!=="" && shell.popup!=="assistant"
     Rectangle {anchors.fill:parent;color:"#23332f";opacity:0.18;MouseArea{anchors.fill:parent;onClicked:overlay.shell.popup=""}}
     Surface {
         id: panel
-        x:overlay.shell.popup==="climate"?410:510;y:overlay.shell.popup==="climate"?430:155
-        width:overlay.shell.popup==="climate"?780:580;height:overlay.shell.popup==="climate"?333:610
+        x:overlay.shell.popup==="assistantSettings"?44:overlay.shell.popup==="climate"?410:510
+        y:overlay.shell.popup==="assistantSettings"?80:overlay.shell.popup==="climate"?430:155
+        width:overlay.shell.popup==="assistantSettings"?1512:overlay.shell.popup==="climate"?780:580
+        height:overlay.shell.popup==="assistantSettings"?690:overlay.shell.popup==="climate"?333:610
         MouseArea {anchors.fill:parent}
         UiButton {objectName:"closePopup";x:parent.width-63;y:14;width:47;height:47;quiet:true;iconName:"close";z:10;onClicked:overlay.shell.popup=""}
         Loader {
             id: contents;anchors.fill:parent;active:overlay.visible
-            sourceComponent: overlay.shell.popup==="musicQueue"||overlay.shell.popup==="musicFolders"?musicManagerComponent:overlay.shell.popup==="bluetooth"?bluetoothComponent:overlay.shell.popup==="audio"?audioComponent:overlay.shell.popup==="system"?systemComponent:overlay.shell.popup==="source"?vehicleSourceComponent:overlay.shell.popup==="climate"?climateComponent:overlay.shell.popup==="destination"?destinationComponent:overlay.shell.popup==="settings"?settingsComponent:overlay.shell.popup==="notifications"?notificationsComponent:overlay.shell.popup==="driving"?drivingComponent:overlay.shell.popup==="demo"?demoComponent:overlay.shell.popup==="charging"?chargingComponent:appsComponent
+            sourceComponent: ({assistantSettings:assistantSettingsComponent,weather:weatherComponent,musicQueue:musicManagerComponent,musicFolders:musicManagerComponent,videoFolders:videoFoldersComponent,bluetooth:bluetoothComponent,audio:audioComponent,system:systemComponent,source:vehicleSourceComponent,climate:climateComponent,destination:destinationComponent,settings:settingsComponent,notifications:notificationsComponent,driving:drivingComponent,demo:demoComponent,charging:chargingComponent})[overlay.shell.popup]||null
         }
     }
     KeyboardPad {id:keyboard;x:460;y:534;width:680;height:235;z:11;visible:false;input:overlay.shell.popup==="destination"&&contents.item?contents.item.input:null}
@@ -23,6 +25,9 @@ Item {
     Component {id:systemComponent;SystemPanel {shell:overlay.shell}}
     Component {id:bluetoothComponent;BluetoothPanel {shell:overlay.shell}}
     Component {id:audioComponent;AudioPanel {}}
+    Component {id:weatherComponent;WeatherPanel {}}
+    Component {id:assistantSettingsComponent;AssistantSettings {shell:overlay.shell}}
+    Component {id:videoFoldersComponent;VideoFoldersPanel {shell:overlay.shell}}
     Component {id:musicManagerComponent;MusicManagerPanel {shell:overlay.shell}}
     Component {id:notificationsComponent;NotificationsPanel {shell:overlay.shell}}
     Component {id:drivingComponent;DrivingPanel {shell:overlay.shell}}
@@ -56,16 +61,6 @@ Item {
             }
             UiButton {x:30;y:486;width:520;height:56;text:"打开车辆补能控制";onClicked:overlay.shell.inspectPart("port")}
             Label {x:30;y:569;text:EnergyVisual.realSystem?"站点为离线示意 · 电量来自 Windows":"站点与补能均为离线演示";font.pixelSize:15;color:Theme.muted}
-        }
-    }
-    Component {
-        id:appsComponent
-        Item {
-            Label {x:30;y:27;text:"全部应用";font.pixelSize:28}
-            Repeater {
-                model:[{name:"nav",title:"导航"},{name:"car",title:"车辆"},{name:"music",title:"音乐"},{name:"fan",title:"空调"},{name:"charge",title:"补能"},{name:"settings",title:"设置"}]
-                UiButton {required property var modelData;required property int index;x:30+index%2*265;y:125+Math.floor(index/2)*135;width:255;height:112;text:modelData.title;iconName:modelData.name;vertical:true;onClicked:{if(index<3)overlay.shell.showPage(index+1);else overlay.shell.openPopup(index===3?"climate":index===4?"charging":"settings")}}
-            }
         }
     }
 }

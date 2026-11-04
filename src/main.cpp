@@ -18,7 +18,13 @@
 #include "DeviceSmoke.h"
 #include "MusicLibrary.h"
 #include "MusicSmoke.h"
-#include "MusicSource.h"
+#include "WeatherService.h"
+#include "MediaSmoke.h"
+#include "assistant/AssistantRuntime.h"
+#include "media/MediaState.h"
+#include "media/MediaSession.h"
+#include "media/RadioService.h"
+#include "media/VideoLibrary.h"
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -28,11 +34,12 @@
 #include <memory>
 
 int main(int argc,char *argv[]) {
-    bool smoke=false,native=false,linkSmoke=false,systemSmoke=false,systemProbe=false,deviceSmoke=false,deviceProbe=false,deviceQmlCheck=false,musicSmoke=false;
+    bool smoke=false,native=false,linkSmoke=false,systemSmoke=false,systemProbe=false,deviceSmoke=false,deviceProbe=false,deviceQmlCheck=false,musicSmoke=false,mediaSmoke=false;
     for(int i=1;i<argc;++i){const QByteArray argument(argv[i]);if(argument=="--smoke-test")smoke=true;if(argument=="--smoke-native"){smoke=true;native=true;}if(argument=="--link-smoke"){smoke=true;native=true;linkSmoke=true;}if(argument=="--system-smoke"){smoke=true;native=true;systemSmoke=true;}if(argument=="--system-probe")systemProbe=true;}
     for(int i=1;i<argc;++i){const QByteArray argument(argv[i]);if(argument=="--device-smoke"){deviceSmoke=true;smoke=true;native=true;}if(argument=="--device-probe")deviceProbe=true;}
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--device-qml-check")deviceQmlCheck=true;
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--music-smoke"||QByteArray(argv[i])=="--music-resume-check"){musicSmoke=true;smoke=true;native=true;}
+    for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--media-smoke"){mediaSmoke=true;smoke=true;native=true;}
     if(deviceQmlCheck)qputenv("QT_QPA_PLATFORM","offscreen");
     if(systemProbe||deviceProbe||deviceQmlCheck){qputenv("CAR_TERMINAL_NO_SETTINGS","1");qputenv("QT_FORCE_STDERR_LOGGING","1");}
     if(smoke){if(!native)qputenv("QSG_RENDER_LOOP","basic");qputenv("QT_FORCE_STDERR_LOGGING","1");qputenv("CAR_TERMINAL_NO_SETTINGS","1");}
@@ -49,7 +56,14 @@ int main(int argc,char *argv[]) {
     engine.rootContext()->setContextProperty("AudioOutputs",&outputs);
     engine.rootContext()->setContextProperty("BluetoothState",&bluetooth);
     engine.rootContext()->setContextProperty("PhoneAudio",&receiver);
-    std::unique_ptr<QIODevice> sourceDevice;QMediaPlayer player;player.setAudioOutput(&audio);MusicLibrary library(state,&player,nullptr,qEnvironmentVariable("CAR_TERMINAL_MUSIC_LIBRARY_FILE"));qint64 pendingSeek=-1;
+    WeatherService weather(!qEnvironmentVariableIsSet("CAR_TERMINAL_NO_SETTINGS"));
+    engine.rootContext()->setContextProperty("Weather",&weather);
+    MediaState music;MediaSession session(&music,&audio,nullptr,smoke);auto &player=*session.player();
+    MusicLibrary library(&music,&player,nullptr,qEnvironmentVariable("CAR_TERMINAL_MUSIC_LIBRARY_FILE"));
+    RadioService radio(&session);VideoLibrary videos(&session,nullptr,qEnvironmentVariable("CAR_TERMINAL_VIDEO_LIBRARY_FILE"));
+    AssistantRuntime assistant(*engine.rootContext(),*state,music,session,videos,radio,audio);
+    engine.rootContext()->setContextProperty("MediaState",&music);engine.rootContext()->setContextProperty("Media",&session);
+    engine.rootContext()->setContextProperty("Radio",&radio);engine.rootContext()->setContextProperty("Videos",&videos);
     engine.rootContext()->setContextProperty("Music",&library);
     QObject::connect(&library,&MusicLibrary::notice,&app,[&](const QString &message){emit state->toast(message,"info");});
     for(const auto &argument:app.arguments())if(argument.startsWith("--vehicle-server="))state->connection()->setServerName(argument.mid(17));
@@ -64,9 +78,9 @@ int main(int argc,char *argv[]) {
         BluetoothSnapshot fixture;fixture.state="on";fixture.adapters={QVariantMap{{"name",QStringLiteral("测试适配器")},{"state","on"}}};fixture.devices={QVariantMap{{"name",QStringLiteral("测试键盘")},{"kind",QStringLiteral("低功耗蓝牙")},{"connected",true},{"connectionKnown",true}}};bluetooth.applySnapshot(fixture);
         QQmlComponent stub(&engine);stub.setData("import QtQml\nQtObject { property string clockText: '16:28'; property string popup: ''; property int page: 0; property bool demoRunning: false; function formatTime(value) { return '00:00' } function openPopup(name) {} function showPage(index) {} function inspectPart(part) {} }",QUrl());
         std::unique_ptr<QObject> shell(stub.create());if(!shell)return 2;QJsonArray checked;qsizetype windowObjects=0;
-        for(const auto &name:QStringList{"AudioPanel","BluetoothPanel","MusicPage","MusicManagerPanel","StatusBar","BottomBar","MusicCard"}){
+        for(const auto &name:QStringList{"AudioPanel","WeatherPanel","BluetoothPanel","MediaPage","MusicManagerPanel","StatusBar","BottomBar","MediaCard","AssistantPanel","AssistantSettings","AssistantVoicePanel","AssistantAppearancePanel","AssistantDiagnosticsPanel","AssistantWakePanel"}){
             QQmlComponent component(&engine);component.loadFromModule("CarTerminal",name);QVariantMap properties;
-            if(name!="AudioPanel")properties["shell"]=QVariant::fromValue(shell.get());
+            if(name!="AudioPanel"&&name!="WeatherPanel"&&name!="AssistantVoicePanel"&&name!="AssistantAppearancePanel"&&name!="AssistantDiagnosticsPanel"&&name!="AssistantWakePanel")properties["shell"]=QVariant::fromValue(shell.get());
             std::unique_ptr<QObject> object(component.createWithInitialProperties(properties));
             if(!object){qCritical()<<component.errors();return 2;}QCoreApplication::processEvents();windowObjects=qMax(windowObjects,QGuiApplication::allWindows().size());checked.append(name);
         }
@@ -83,49 +97,23 @@ int main(int argc,char *argv[]) {
         QDir().mkpath("artifacts/devices");QFile file("artifacts/devices/live.json");if(!file.open(QIODevice::WriteOnly))return 2;
         file.write(QJsonDocument(QJsonObject{{"capturedAt",QDateTime::currentDateTime().toString(Qt::ISODate)},{"bluetooth",QJsonObject::fromVariantMap(bluetooth.status())},{"phoneAudio",QJsonObject{{"supported",receiver.supported()},{"phase",receiver.phase()},{"devices",QJsonArray::fromVariantList(phones)},{"scanError",receiver.scanError()}}},{"audioOutputs",QJsonArray::fromVariantList(devices)},{"activeOutput",outputs.activeName()},{"followDefault",outputs.followDefault()},{"routeMatches",outputs.routeMatches()}}).toJson());return 0;
     }
-    auto synchronize=[&]{
-        const QUrl source(state->trackUrl());if(player.source()!=source){pendingSeek=state->position()>0?qint64(state->position()):-1;setMusicSource(player,source,sourceDevice);}
-        audio.setVolume(smoke?0.0f:state->volume()/100.0f);
-        if(state->playing()&&receiver.active()){state->setPlaying(false);return;}
-        if(state->playing()&&!outputs.available()){state->setPlaying(false);emit state->toast(QStringLiteral("没有可用音频输出，请连接扬声器或耳机"),"warning");return;}
-        if(state->playing())player.play();else player.pause();
-    };
-    QObject::connect(state,&VehicleState::changed,&app,synchronize);
+    QObject::connect(&music,&MediaState::toast,state,&VehicleState::toast);
+    QObject::connect(&session,&MediaSession::notice,&app,[&](const QString &message){emit state->toast(message,"warning");});
+    QObject::connect(&videos,&VideoLibrary::notice,&app,[&](const QString &message){emit state->toast(message,"info");});
     QObject::connect(&outputs,&AudioDevices::notice,&app,[&](const QString &message){emit state->toast(message,"info");});
     QObject::connect(&bluetooth,&BluetoothStatus::notice,&app,[&](const QString &message){emit state->toast(message,"warning");});
     QObject::connect(&receiver,&BluetoothAudio::notice,&app,[&](const QString &message){emit state->toast(message,"warning");});
-    QString receiverLogPhase;
-    QObject::connect(&receiver,&BluetoothAudio::changed,&app,[&]{if(receiver.active())state->setPlaying(false);if(receiverLogPhase!=receiver.phase()){receiverLogPhase=receiver.phase();qInfo().noquote()<<"Phone audio:"<<receiverLogPhase<<receiver.error();}});
-    QObject::connect(&receiver,&BluetoothAudio::changed,&bluetooth,[&]{if(receiver.phase()=="connected"||receiver.phase()=="idle")bluetooth.refresh();});
-    QObject::connect(&bluetooth,&BluetoothStatus::changed,&receiver,[&]{const auto radio=bluetooth.status()["state"].toString();if(receiver.active()&&(radio=="off"||radio=="absent"||radio=="disabled"))receiver.disconnectDevice();});
-    QObject::connect(&outputs,&AudioDevices::changed,&receiver,[&]{receiver.setOutputAvailable(outputs.available());});
-    QObject::connect(&outputs,&AudioDevices::outputUnavailable,&app,[&]{const bool playing=state->playing();state->setPlaying(false);emit state->toast(playing?QStringLiteral("音频输出已断开，本地音乐已暂停"):QStringLiteral("未检测到音频输出设备"),"warning");});
-    bool seekScheduled=false;
-    auto applyPendingSeek=[&]{
-        if(pendingSeek<0||seekScheduled||!player.isSeekable()||player.duration()<=0)return;
-        if(player.mediaStatus()!=QMediaPlayer::LoadedMedia&&player.mediaStatus()!=QMediaPlayer::BufferedMedia)return;
-        seekScheduled=true;const auto source=player.source();
-        // FFmpeg emits load signals before finishing its backend setup. Apply
-        // the bookmark after that event has returned, without starting playback.
-        QTimer::singleShot(0,&app,[&,source]{seekScheduled=false;if(player.source()!=source||pendingSeek<0)return;const auto at=qMin(pendingSeek,qMax(0LL,player.duration()-1000));pendingSeek=-1;player.setPosition(at);});
-    };
-    QObject::connect(state,&VehicleState::seekRequested,&app,[&](qint64 at){if(player.isSeekable()){pendingSeek=-1;player.setPosition(at);}else pendingSeek=at;});
-    QObject::connect(&player,&QMediaPlayer::seekableChanged,&app,[&](bool){applyPendingSeek();});
-    QObject::connect(state,&VehicleState::mediaReloadRequested,&app,[&]{setMusicSource(player,QUrl(state->trackUrl()),sourceDevice);synchronize();});
-    QObject::connect(&player,&QMediaPlayer::positionChanged,state,&VehicleState::updatePosition);
-    QObject::connect(&player,&QMediaPlayer::durationChanged,&app,[&](qint64 value){state->updateDuration(value);applyPendingSeek();});
-    QObject::connect(&player,&QMediaPlayer::mediaStatusChanged,&app,[&](QMediaPlayer::MediaStatus status){
-        if(status==QMediaPlayer::EndOfMedia){state->finishTrack();return;}
-        if(status==QMediaPlayer::LoadingMedia)state->updateMediaStatus("loading");
-        if(status==QMediaPlayer::LoadedMedia||status==QMediaPlayer::BufferedMedia){state->updateMediaStatus("ready");applyPendingSeek();}
-    });
-    QObject::connect(&player,&QMediaPlayer::errorOccurred,&app,[&](QMediaPlayer::Error,const QString &message){state->updateMediaStatus("error",message);emit state->toast(QStringLiteral("音源加载失败，可在音乐页重试"),"warning");});
-    synchronize();
+    QObject::connect(&receiver,&BluetoothAudio::changed,&session,[&]{session.setPhoneActive(receiver.active());if(receiver.phase()=="connected"||receiver.phase()=="idle")bluetooth.refresh();});
+    QObject::connect(&bluetooth,&BluetoothStatus::changed,&receiver,[&]{const auto status=bluetooth.status()["state"].toString();if(receiver.active()&&(status=="off"||status=="absent"||status=="disabled"))receiver.disconnectDevice();});
+    QObject::connect(&outputs,&AudioDevices::changed,&session,[&]{session.setOutputAvailable(outputs.available());receiver.setOutputAvailable(outputs.available());});
+    auto videoPolicy=[&]{session.setVideoAllowed(state->gear()=="P"&&state->speed()==0&&state->externalReady());};
+    QObject::connect(state,&VehicleState::changed,&session,videoPolicy);QObject::connect(state,&VehicleState::sourceChanged,&session,videoPolicy);videoPolicy();
+    session.setOutputAvailable(outputs.available());session.useMusic();
     QObject::connect(&engine,&QQmlApplicationEngine::objectCreationFailed,&app,[]{QCoreApplication::exit(1);},Qt::QueuedConnection);
     engine.loadFromModule("CarTerminal",app.arguments().contains("--legacy-3d")?"Legacy3D":"Main");if(engine.rootObjects().isEmpty())return 1;
     auto *window=qobject_cast<QQuickWindow*>(engine.rootObjects().first());
-    if(musicSmoke)runMusicSmoke(app,*window,*state,player,library,warnings);else if(deviceSmoke)runDeviceSmoke(app,*window,*state,player,outputs,bluetooth,receiver,warnings);else if(systemSmoke)runSystemSmoke(app,*window,*state,warnings);else if(linkSmoke)runLinkSmoke(app,*window,*state,warnings);else if(smoke)runUiSmoke(app,*window,*state,player,warnings,native);
-    const int result=app.exec();library.save();
+    if(mediaSmoke)runMediaSmoke(app,*window,*state,music,session,radio,videos,warnings);else if(musicSmoke)runMusicSmoke(app,*window,music,player,library,warnings);else if(deviceSmoke)runDeviceSmoke(app,*window,music,player,outputs,bluetooth,receiver,warnings);else if(systemSmoke)runSystemSmoke(app,*window,*state,warnings);else if(linkSmoke)runLinkSmoke(app,*window,*state,music,warnings);else if(smoke)runUiSmoke(app,*window,*state,music,player,warnings,native);
+    const int result=app.exec();session.stop();session.setVideoOutput(nullptr);player.setAudioBufferOutput(nullptr);player.setAudioOutput(nullptr);videos.save();library.save();
     // Destroy bindings while all context services and the Vehicle singleton live.
     for(auto *root:engine.rootObjects())delete root;
     return result;

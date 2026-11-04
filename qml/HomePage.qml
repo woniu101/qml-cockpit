@@ -46,7 +46,7 @@ Item {
         framingOffset: Qt.point(40,-45)
         onReadyChanged: home.offerModelHint()
         onInteracted: home.dismissModelHint()
-        onTapped: home.shell.showPage(2)
+        onTapped: home.shell.showPage(AppRoutes.Vehicle)
     }
     Label {
         x: 60; y: 730; width: 995
@@ -79,11 +79,31 @@ Item {
         Rectangle { x: 29; y: 220; width: 380; height: 1; color: Theme.line }
         UiButton { objectName: "homeNearbyStations"; x: 15; y: 226; width: 405; height: 50; quiet: true; text: "附近充电站"; iconName: "charge"; onClicked: home.shell.openPopup("charging") }
     }
-    MusicCard { x: 1110; y: 397; shell: home.shell }
+    MediaCard { x: 1110; y: 397; shell: home.shell }
     Surface {
         x: 1110; y: 652; width: 438; height: 110
-        Label { x: 28; y: 32; text: "场景模式"; font.pixelSize: 19; color: Theme.muted }
-        UiButton { objectName: "restScene"; x: 133; y: 24; width: 125; height: 52; text: "小憩"; iconName: "moon"; selected: Vehicle.scene === "rest"; onClicked: Vehicle.setScene(Vehicle.scene === "rest" ? "comfort" : "rest") }
-        UiButton { objectName: "campScene"; x: 273; y: 24; width: 135; height: 52; text: "露营"; iconName: "tent"; selected: Vehicle.scene === "camp"; onClicked: Vehicle.setScene(Vehicle.scene === "camp" ? "comfort" : "camp") }
+        Label { x: 28; y: 12; text: "场景模式"; font.pixelSize: 21; font.weight: Font.Medium }
+        Row {
+            x: 28; y: 44; spacing: 14
+            Repeater {
+                model: [{ key: "rest", label: "小憩", icon: "moon" }, { key: "camp", label: "露营", icon: "tent" }]
+                UiButton {
+                    id: sceneButton
+                    required property var modelData
+                    objectName: modelData.key + "Scene"
+                    width: 184; height: 50; textSize: 19
+                    text: modelData.label; iconName: modelData.icon
+                    selected: Vehicle.scene === modelData.key
+                    Accessible.name: selected ? text + "，已开启" : text
+                    background: Rectangle {
+                        radius: 16
+                        color: sceneButton.selected || sceneButton.down ? Theme.active : Theme.secondary
+                        border.width: sceneButton.selected || sceneButton.visualFocus ? 1 : 0
+                        border.color: Theme.green
+                    }
+                    onClicked: Vehicle.setScene(selected ? "comfort" : modelData.key)
+                }
+            }
+        }
     }
 }

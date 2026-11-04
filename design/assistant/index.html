@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>座舱助手 · 界面设计</title>
+<style>
+:root{font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;color:#22332d;background:#e9eee7;--ink:#22332d;--muted:#687a70;--accent:#507763;--line:#dce5da;--soft:#eef3ed;--white:#fcfdfa}
+*{box-sizing:border-box}
+body{margin:0}
+button{font:inherit;color:inherit}
+.review{max-width:1680px;margin:auto;padding:30px 36px 22px}
+.review-header{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap;margin-bottom:20px}
+.kicker{font-size:13px;font-weight:600;letter-spacing:.14em;color:var(--accent)}
+.review h1{margin:7px 0 4px;font-size:34px;letter-spacing:-.04em;font-weight:600}
+.review p{margin:0;color:var(--muted);font-size:14px}
+.review nav{display:flex;gap:6px;flex-wrap:wrap}
+.review nav button{border:1px solid transparent;background:#f5f8f3;border-radius:12px;padding:10px 13px;cursor:pointer;white-space:nowrap}
+.review nav button[aria-pressed=true]{background:#dbe8de;border-color:#b9cec0;color:#2f5844}
+.frame{max-width:1600px;margin:auto;overflow:hidden;border:1px solid #d2ddd2;border-radius:22px;background:#f0f3ec}
+.screen{position:relative;width:1600px;height:900px;overflow:hidden;background:linear-gradient(108deg,#f5f6ef,#e3ebe1);transform-origin:top left}
+.scene{position:absolute;inset:0;background-size:1775.5px 900px;background-position:-87.8px 0;background-repeat:no-repeat}
+.scene.home{background-image:url("../../docs/screenshots/home.png")}
+.scene.drive{background-image:url("../../docs/screenshots/driving.png")}
+.old-hint-cover{position:absolute;left:34px;bottom:122px;width:275px;height:32px;background:linear-gradient(90deg,#f3f4ee,#f0f2ed 92%,transparent);mask-image:linear-gradient(transparent,#000 18%,#000 80%,transparent)}
+.top{position:absolute;inset:0 0 auto;height:72px;display:flex;align-items:center;gap:19px;padding:0 55px;background:linear-gradient(103deg,#f4f5ef,#e1e9df);color:var(--muted);font-size:18px}
+.top .clock{font-size:25px;margin-right:10px}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:26px}
+.top .weather,.top .link,.chip{display:flex;align-items:center;gap:9px}
+.chip{padding:9px 17px;border-radius:40px;background:#e2ebe0;color:var(--accent);min-width:146px;justify-content:center;font-weight:600}
+.top .link{margin-left:55px;color:var(--accent);font-size:16px}
+.top .user{width:33px;height:33px;display:grid;place-items:center;border:1px solid #cedad0;border-radius:50%;background:#fff;color:var(--accent)}
+.battery{display:inline-flex;align-items:center;gap:9px}
+.battery-shape{position:relative;width:35px;height:14px;border:1px solid #80918a;border-radius:3px;padding:2px}
+.battery-shape:before{content:"";display:block;width:var(--charge,82%);height:100%;background:#5c7f6e;border-radius:1px}
+.battery-shape:after{content:"";position:absolute;right:-4px;top:4px;width:2px;height:5px;background:#80918a}
+.icon{width:24px;height:24px;display:inline-block;object-fit:contain;flex:none;filter:invert(16%) sepia(13%) saturate(885%) hue-rotate(103deg)}
+.selected .icon,.state .icon,.utilities .icon,.volume .icon,.top .icon,.candidate .icon{filter:invert(40%) sepia(21%) saturate(570%) hue-rotate(99deg)}
+.top .icon{width:20px;height:20px}
+.dock{position:absolute;inset:auto 0 0;height:110px;background:#f7f9f4;border-top:1px solid #dce4d9;display:flex;align-items:center;justify-content:space-between;padding:0 31px;gap:16px}
+.dock-group{display:flex;align-items:center;gap:10px}
+.dock-item{display:grid;place-items:center;align-content:center;gap:7px;min-width:70px;height:78px;border-radius:23px;font-size:17px}
+.dock-item.selected{background:#e1ebe0;color:var(--accent)}
+.divider{height:51px;width:1px;background:#dce5da;flex:none}
+.climate{min-width:171px;display:flex;align-items:center;justify-content:center;gap:14px}
+.climate .icon{width:17px}
+.climate-value{text-align:center;font-size:36px;line-height:1.03;font-variant-numeric:tabular-nums}
+.climate-value small{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+.utilities{gap:14px}
+.utilities .dock-item{min-width:57px;color:var(--accent);font-size:15px}
+.volume{display:flex;align-items:center;gap:12px;color:var(--muted)}
+.volume .track{width:82px;height:4px;background:#dce5da;border-radius:7px;position:relative}
+.volume .track:before{content:"";position:absolute;width:44%;height:4px;background:#557966;border-radius:7px}
+.volume .track:after{content:"";position:absolute;width:16px;height:16px;background:#557966;border-radius:50%;left:39%;top:-6px}
+.portrait{position:relative;display:block;flex:none;width:var(--size,42px);height:var(--size,42px);border-radius:50%;overflow:hidden;background:#eaf0e5;box-shadow:inset 0 0 0 1px #dae6d9}
+.portrait img{width:150%;height:150%;max-width:none;position:absolute;left:-25%;top:-7%;object-fit:contain;mix-blend-mode:multiply}
+.portrait.listening{box-shadow:inset 0 0 0 2px #92b49e,0 0 0 4px #e3f0e7}
+.assistant-entry{min-width:77px;gap:4px}
+.assistant-entry .portrait{--size:34px}
+.assistant-entry.active{background:#e1ebe0;color:var(--accent)}
+.voice-card{position:absolute;left:50%;bottom:130px;width:580px;transform:translateX(-50%);background:var(--white);border:1px solid #d5e2d7;border-radius:26px;padding:20px 22px 17px;box-shadow:0 16px 52px #2c50312b,0 2px 6px #35573e10}
+.card-head{display:flex;align-items:center;gap:16px}
+.card-head .portrait{--size:62px}
+.state{font-size:15px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:8px}
+.state:before{content:"";width:7px;height:7px;border-radius:50%;background:#5c8d70}
+.card-head h2,.drive-card h2{font-size:25px;font-weight:600;margin:5px 0 0;line-height:1.25}
+.icon-button{display:grid;place-items:center;background:#f0f4ee;border-radius:14px;width:44px;height:44px;color:#50675b;border:0}
+.icon-button .icon{width:19px}
+.card-head .icon-button{margin-left:auto;align-self:flex-start}
+.heard{margin:14px 0 11px;color:var(--muted);font-size:16px}
+.heard b{font-weight:500;color:var(--ink)}
+.candidates{display:grid;gap:6px}
+.candidate{display:flex;align-items:center;gap:11px;padding:7px 10px 7px 8px;background:#eef3ed;border-radius:13px;min-height:49px}
+.candidate .index{width:30px;height:30px;display:grid;place-items:center;background:#dce9df;color:#315542;border-radius:9px;font-weight:600;font-size:15px}
+.candidate .title{font-size:17px;font-weight:600}
+.candidate .subtitle{margin-left:8px;color:var(--muted);font-size:15px}
+.candidate .icon{margin-left:auto;color:var(--accent);width:18px}
+.hint{margin:12px 0 0;display:flex;justify-content:space-between;color:var(--muted);font-size:15px}
+.drive-card{position:absolute;right:49px;top:82px;width:455px;height:75px;display:flex;align-items:center;gap:13px;padding:10px 13px;background:var(--white);border:1px solid #d5e2d7;border-radius:20px;box-shadow:0 8px 25px #34553e20}
+.drive-card .portrait{--size:43px}
+.drive-card .state{font-size:13px}
+.drive-card h2{font-size:19px}
+.drive-card .icon-button{margin-left:auto}
+.settings-shell{position:absolute;inset:89px 55px 134px;display:grid;grid-template-columns:222px minmax(0,1fr) 350px;gap:22px}
+.settings-nav{border-right:1px solid #d7e2d8;padding-right:20px}
+.settings-nav .back{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:16px;margin-bottom:19px}
+.settings-nav h2{font-size:27px;font-weight:600;margin:0 0 24px}
+.settings-nav .item{display:flex;align-items:center;gap:10px;padding:13px 14px;font-size:18px;margin-bottom:7px;border-radius:13px;color:var(--muted)}
+.settings-nav .item.selected{background:#dde9df;color:#39614c;font-weight:600}
+.settings-body{padding:0 8px}
+.settings-body h1{margin:0;font-size:33px;font-weight:600}
+.settings-body .intro{margin:8px 0 21px;color:var(--muted);font-size:17px}
+.settings-card{background:var(--white);border:1px solid #e4ebe1;border-radius:21px;padding:0 20px}
+.setting-row{display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:80px;padding:13px 0;border-bottom:1px solid #e1e9de}
+.setting-row:last-child{border:0}
+.setting-row strong{display:block;font-size:19px;font-weight:600}
+.setting-row small{display:block;margin-top:5px;color:var(--muted);font-size:14px}
+.segments{display:flex;background:#eef3ed;border-radius:13px;padding:4px;gap:2px}
+.segments span{padding:9px 12px;font-size:15px;white-space:nowrap}
+.segments .on{border-radius:10px;background:#fff;color:#35634d;box-shadow:0 1px 3px #29473320;font-weight:600}
+.level{position:relative;display:flex;align-items:center;gap:10px;color:var(--muted)}
+.level .bar{width:184px;height:5px;border-radius:7px;background:linear-gradient(90deg,#638c75 85%,#dbe5da 85%);position:relative}
+.level .bar:after{content:"";width:16px;height:16px;border-radius:50%;background:#557e69;position:absolute;left:82%;top:-5px}
+.actions{display:flex;gap:10px;margin-top:17px;align-items:center}
+.action{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:13px;padding:11px 16px;min-height:44px;background:#e3eee4;color:#335b46;font-size:16px;font-weight:600}
+.action .icon{width:18px;height:18px}
+.action.primary{background:var(--accent);color:#fff}
+.action.primary .icon{filter:brightness(0) invert(1)}
+.preview{background:var(--white);border:1px solid #e2eae1;border-radius:23px;padding:22px;display:flex;flex-direction:column;min-width:0}
+.preview .kicker{letter-spacing:.05em}
+.preview h2{font-size:24px;margin:7px 0 4px;font-weight:600}
+.preview .character-stage{position:relative;flex:1;min-height:220px;display:grid;place-items:center;background:radial-gradient(ellipse,#e3eee4,#f7faf4 72%);border-radius:19px;margin:15px 0 12px;overflow:hidden}
+.character-stage img{height:100%;max-height:332px;max-width:100%;object-fit:contain;mix-blend-mode:multiply}
+.voice-example{padding:12px;border-radius:12px;background:#eef4ed;color:#53695c;font-size:15px}
+.preview .toggle-line{display:flex;align-items:center;justify-content:space-between;min-height:51px;margin-top:8px}
+.toggle{width:42px;height:24px;border-radius:30px;background:#6f977e;position:relative}
+.toggle:after{content:"";width:18px;height:18px;border-radius:50%;position:absolute;right:3px;top:3px;background:white}
+.review-footer{padding:14px 2px 2px;color:#52685b;font-size:14px;line-height:1.6}
+.export .review{max-width:none;padding:0}
+.export .review-header,.export .review-footer{display:none}
+.export .frame{border:0;border-radius:0}
+@media(max-width:720px){.review{padding:17px 14px}.review h1{font-size:26px}.review nav button{padding:7px 8px;font-size:13px}.frame{border-radius:12px}}
+</style>
+</head>
+<body>
+<main class="review">
+  <header class="review-header">
+    <div><div class="kicker">QML COCKPIT / DESIGN STUDY</div><h1>座舱助手</h1><p>四张静态画板 · 1600 × 900</p></div>
+    <nav id="boards" aria-label="设计画板"></nav>
+  </header>
+  <div class="frame" id="frame"><section class="screen" id="screen" aria-label="车机画板"></section></div>
+  <footer class="review-footer" id="note"></footer>
+</main>
+<script>
+(() => {
+const icon = name => '<img class="icon" alt="" aria-hidden="true" src="../../assets/ui/icons/'+name+'.svg">';
+const portrait = (state='') => '<span class="portrait '+state+'"><img alt="羊角帽助手" src="assets/character.png"></span>';
+const dot = (label, glyph) => '<span class="dock-item">'+icon(glyph)+'<span>'+label+'</span></span>';
+const climate = (zone,temp='22.0') => '<div class="climate">'+icon('chevron-left')+'<div class="climate-value"><small>'+zone+'</small>'+temp+'°</div>'+icon('chevron-right')+'</div>';
+const divide = '<i class="divider"></i>';
+const dock = (active, home, passenger='22.0') => '<div class="dock"><div class="dock-group"><span class="dock-item '+(home?'selected':'')+'">'+icon('home')+'<span>首页</span></span>'+dot('导航','nav')+dot('车辆','car')+dot('媒体','music')+'</div>'+divide+climate('主驾')+'<div class="dock-group utilities">'+dot('AUTO','fan')+dot('A/C','snow')+dot('除雾','defrost')+dot('座椅','seat')+'</div>'+divide+climate('副驾',passenger)+divide+'<div class="volume">'+icon('volume')+'<span class="track"></span></div><div class="dock-group"><span class="dock-item assistant-entry '+(active?'active':'')+'">'+portrait()+'<span>助手</span></span><span class="dock-item">'+icon('apps')+'</span></div></div>';
+const top = driving => '<div class="top"><span class="clock">16:28</span><span class="weather">'+icon('sun')+' 24°　上海</span><span class="chip">'+icon('car')+(driving?'D · 40 km/h':'P · 驻车')+'</span><span class="link">'+icon('layers')+'联调 · 已连接</span><div class="right"><span class="battery" style="--charge:'+(driving?'90':'82')+'%">'+(driving?'90':'82')+'% <i class="battery-shape"></i></span>'+icon('bluetooth')+'<span class="weather">'+icon('ethernet')+' 有线</span>'+icon('bell')+'<span class="user">林</span></div></div>';
+const close = '<span class="icon-button" aria-label="关闭">'+icon('close')+'</span>';
+const candidate = (n,title,meta,kind) => '<div class="candidate"><span class="index">'+n+'</span><span><span class="title">'+title+'</span><span class="subtitle">'+meta+'</span></span>'+icon(kind)+'</div>';
+const conversation = '<div class="voice-card"><div class="card-head">'+portrait('listening')+'<div><div class="state">等你选择</div><h2>你想播放哪一项？</h2></div>'+close+'</div><div class="heard">识别内容　<b>播放七里香</b></div><div class="candidates">'+candidate(1,'七里香','周杰伦 · 本地音乐','music')+candidate(2,'七里香 MV','本地视频','video')+'</div><div class="hint"><span>可以点选，也可以说「选第二个」</span><span>取消</span></div></div>';
+const drivingCard = '<div class="drive-card">'+portrait()+'<div><div class="state">正在播报</div><h2>副驾已设为 24 度</h2></div><span class="icon-button" aria-label="停止播报">'+icon('stop')+'</span></div>';
+const action = (text,glyph,primary=false) => '<span class="action '+(primary?'primary':'')+'">'+icon(glyph)+text+'</span>';
+const segments = (items,active) => '<div class="segments">'+items.map((item,index)=>'<span class="'+(index===active?'on':'')+'">'+item+'</span>').join('')+'</div>';
+const row = (title,description,control) => '<div class="setting-row"><div><strong>'+title+'</strong><small>'+description+'</small></div>'+control+'</div>';
+const settings = '<div class="settings-shell"><aside class="settings-nav"><div class="back">'+icon('chevron-left')+' 设置</div><h2>座舱助手</h2><div class="item">'+icon('settings')+'唤醒</div><div class="item selected">'+icon('volume')+'声音</div><div class="item">'+icon('user')+'形象</div></aside><div class="settings-body"><h1>声音设置</h1><p class="intro">选择助手的音色、语速和回复方式。</p><div class="settings-card">'+row('当前音色','已保存的本地参考音色',action('管理音色','chevron-right'))+row('语速','试听与日常回复共用此设置',segments(['稍慢 0.85×','标准 1.00×','稍快 1.15×'],1))+row('播报音量','独立于音乐和视频音量','<div class="level"><span class="bar"></span><b>85%</b></div>')+row('回复方式','文字结果始终可见',segments(['语音＋文字','仅文字'],0))+'</div><div class="actions">'+action('导入参考 WAV','folder')+action('恢复默认播放设置','refresh')+'</div></div><aside class="preview"><div class="kicker">试听与形象</div><h2>我的音色</h2><div class="character-stage"><img src="assets/character.png" alt="羊角帽助手完整形象"></div><div class="voice-example">「右后车窗已调到百分之三十。」</div><div class="toggle-line"><span>显示助手形象</span><span class="toggle" aria-label="已开启"></span></div>'+action('试听当前设置','play',true)+'</aside></div>';
+const boards = [
+  {name:'首页待机',note:'底栏只显示静态头像和「助手」。首页车辆与右侧卡片继续作为主内容。',content:'<div class="scene home"></div><div class="old-hint-cover"></div>'+top(false)+dock(false,true)},
+  {name:'驻车 · 媒体候选',note:'同名歌曲与视频并列。会话卡停靠在底栏上方，背景保持正常亮度，触屏和语音候选使用相同顺序。',content:'<div class="scene home"></div><div class="old-hint-cover"></div>'+top(false)+dock(true,true)+conversation},
+  {name:'行驶 · 窄状态卡',note:'行驶页把单行播报卡放在右上角的空闲带，避开车速、道路画面和底部操作。方形按钮表示停止当前播报。',content:'<div class="scene drive"></div>'+top(true)+dock(true,false,'24.0')+drivingCard},
+  {name:'设置 · 声音与形象',note:'现有音色继续使用。形象预览用用户提供的羊角帽插画，试听、语速、音量和回复方式集中在设置页。',content:top(false)+settings+dock(false,false)}
+];
+const params = new URLSearchParams(location.search);
+if(params.get('export')==='1') document.body.classList.add('export');
+const viewport = document.getElementById('frame');
+const screen = document.getElementById('screen');
+const navigation = document.getElementById('boards');
+let selected = Number(params.get('board')) || 0;
+if (!boards[selected]) selected=0;
+function show(index) {
+  selected=index;
+  screen.innerHTML=boards[index].content;
+  screen.setAttribute('aria-label',boards[index].name);
+  document.getElementById('note').textContent=boards[index].note;
+  for (const [i,tab] of Array.from(navigation.children).entries()) tab.setAttribute('aria-pressed', String(index===i));
+}
+for (const [index,board] of boards.entries()) {
+  const tab=document.createElement('button');
+  tab.textContent=String(index+1).padStart(2,'0')+'  '+board.name;
+  tab.addEventListener('click',()=>show(index));
+  navigation.appendChild(tab);
+}
+function fit() {
+  const scale=viewport.clientWidth/1600;
+  screen.style.transform='scale('+scale+')';
+  viewport.style.height=(900*scale+(document.body.classList.contains('export')?0:2))+'px';
+}
+show(selected);
+new ResizeObserver(fit).observe(viewport);
+fit();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+#pragma once
+
+#include <QImage>
+#include <QObject>
+#include <QTemporaryDir>
+#include <QUrl>
+
+class AssistantAppearance final : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QUrl avatar READ avatar NOTIFY changed)
+    Q_PROPERTY(QUrl preview READ preview NOTIFY changed)
+    Q_PROPERTY(bool custom READ custom NOTIFY changed)
+    Q_PROPERTY(bool shown READ shown WRITE setShown NOTIFY changed)
+    Q_PROPERTY(bool reducedMotion READ reducedMotion WRITE setReducedMotion NOTIFY changed)
+    Q_PROPERTY(QString message READ message NOTIFY changed)
+
+public:
+    explicit AssistantAppearance(QString storage = {});
+    QUrl avatar() const;
+    QUrl preview() const { return m_preview; }
+    bool custom() const { return m_custom; }
+    bool shown() const { return m_shown; }
+    bool reducedMotion() const { return m_reducedMotion; }
+    QString message() const { return m_message; }
+    void setShown(bool value);
+    void setReducedMotion(bool value);
+    Q_INVOKABLE bool load(const QUrl &url);
+    Q_INVOKABLE void crop(double zoom, double horizontal, double vertical);
+    Q_INVOKABLE bool save();
+    Q_INVOKABLE void discard();
+    Q_INVOKABLE void restoreDefault();
+
+signals:
+    void changed();
+
+private:
+    void status(const QString &message);
+    QTemporaryDir m_temporary;
+    QImage m_original, m_crop;
+    QString m_storage, m_message;
+    QUrl m_preview;
+    int m_revision = 0;
+    bool m_custom = false, m_shown = true, m_reducedMotion = false;
+    bool m_storePreferences = false;
+};
