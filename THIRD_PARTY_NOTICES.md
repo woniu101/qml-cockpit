@@ -38,4 +38,8 @@ The original model license metadata and download SHA-256 are preserved in `asset
 
 ## Qt 和媒体组件
 
+座舱助手的原生推理使用 sherpa-onnx 2.0.1（Apache-2.0）和该官方 Windows SDK 随附的 ONNX Runtime（MIT）。源码分别位于 https://github.com/k2-fsa/sherpa-onnx 与 https://github.com/microsoft/onnxruntime 。固定下载地址和 SHA-256 见 `scripts/setup-native-inference.ps1`，本地 SDK 来源记录在 `.deps/assistant-native/sources.json`。ONNX Runtime C 接口按 API 20 调用，使用 SDK 随附的兼容运行库，禁止混用 Python 虚拟环境中的 DLL。
+
+自定义唤醒词的发音表由导出工具使用 pypinyin（MIT）生成，运行端仅读取导出表。模型权重与词表的许可独立于推理库；模型目录保留其来源和导出记录。程序不分发用户导入的参考音色或媒体文件。
+
 运行时使用 Qt 6.12 模块，以及随 Qt Multimedia 部署的 FFmpeg 组件。相关文件保留原文件名与版权。Qt 本机许可文本位于 `D:\Qt\Licenses`，打包时一并复制到 `licenses/Qt`。各模块的具体许可以对应文本为准。

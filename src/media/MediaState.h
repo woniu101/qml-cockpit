@@ -84,7 +84,7 @@ class MediaState : public QObject {
     int m_historyCursor = -1;
     bool m_explicitQueue = false;
     QString m_playMode = "all", m_mediaStatus = "loading", m_mediaError;
-    double m_position = 0, m_duration = 64000;
+    double m_position = 0, m_duration = 0;
     int m_volume = 45, m_track = 0;
     bool m_playing = false, m_demoActive = false, m_preferencesEnabled = false;
     QString m_settingsPath;

@@ -20,7 +20,7 @@ public:
 
 private:
     bool handleWindows(const QString &phrase, const Reply &reply);
-    bool handleClimate(const QString &phrase, const Reply &reply);
+    bool handleClimate(const QString &phrase, const Reply &reply, bool spoken);
     void requestWindow(int index, int target, const Reply &reply, Confirmed confirmed = {});
     bool windowsAtTarget() const;
     QString windowSuccess() const;

@@ -60,7 +60,7 @@ Item {
                         Label {x:66;y:4;width:254;text:modelData.title;textFormat:Text.PlainText;font.pixelSize:20;elide:Text.ElideRight}
                         Label {x:66;y:37;width:254;text:modelData.available===false?"文件不可用 · 可重新定位":(modelData.artist||modelData.source||"未知歌手");textFormat:Text.PlainText;font.pixelSize:14;color:Theme.muted;elide:Text.ElideRight}
                         UiButton {x:325;y:8;width:42;height:44;quiet:true;text:modelData.favorite?"★":"☆";textSize:24;caption:"切换收藏";onClicked:Music.toggleFavorite(modelData.index)}
-                        UiButton {x:377;y:8;width:42;height:44;quiet:true;text:"×";textSize:24;visible:modelData.index>=3;caption:"从音乐库移除，保留文件";onClicked:Music.remove(modelData.index)}
+                        UiButton {x:377;y:8;width:42;height:44;quiet:true;text:"×";textSize:24;caption:"从音乐库移除，保留文件";onClicked:Music.remove(modelData.index)}
                     }
                     onClicked:{if(modelData.available===false){page.relocationIndex=modelData.index;relocationDialog.open()}else Music.playFromView(modelData.index)}
                 }

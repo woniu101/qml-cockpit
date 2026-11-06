@@ -1,6 +1,8 @@
 #include "UiSmoke.h"
 #include "VehicleState.h"
 #include "media/MediaState.h"
+#include "MusicFixture.h"
+#include <QTemporaryDir>
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QQuickItem>
@@ -26,8 +28,14 @@
 #include <cmath>
 
 void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,MediaState &music,QMediaPlayer &player,QStringList &warnings,bool native) {
-    window.setProperty("testMode",true);window.setProperty("clockText","16:28");window.setProperty("dateText",QStringLiteral("11月2日 周一"));window.setProperty("greetingText",QStringLiteral("下午好，林先生"));window.setProperty("arrivalText","16:46");
+    window.setProperty("testMode",true);window.setProperty("clockText","16:28");window.setProperty("dateText",QStringLiteral("11月2日 周一"));window.setProperty("greetingText",QStringLiteral("下午好，")+window.property("profileDisplayName").toString());window.setProperty("arrivalText","16:46");
     QTimer::singleShot(1800,&app,[&,native]{
+        QTemporaryDir testMusic;
+        for (int i = 0; i < 3; ++i) {
+            const auto path = testMusic.filePath(QStringLiteral("ui-test-%1.wav").arg(i));
+            if (!writeMusicFixture(path)) { app.exit(2); return; }
+            music.importTracks({QUrl::fromLocalFile(path)});
+        }
         window.raise();window.requestActivate();const QString directory=QDir::current().absoluteFilePath(qEnvironmentVariable("CAR_TERMINAL_SMOKE_DIR",native?"artifacts/v6/native":"artifacts/v6/basic"));QDir().mkpath(directory);
         auto require=[](bool value,const char *message){if(!value)throw std::runtime_error(message);};
         std::function<QQuickItem*(QQuickItem*,const QString&)> find;
@@ -48,6 +56,61 @@ void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,Me
         };
         try {
             wait([&]{return item("homeVehicleScene")->property("ready").toBool();},"3D home ready",8000);capture("01-home");
+            auto *homeScene = item("homeVehicleScene");
+            auto wheelAt = [&](const QPointF &position, int delta) {
+                QWheelEvent event(position, window.mapToGlobal(position.toPoint()), {}, QPoint(0, delta),
+                                  Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+                QGuiApplication::sendEvent(&window, &event);
+                QTest::qWait(180);
+            };
+            auto *canvas = item("designCanvas");
+            const auto overModel = canvas->mapToScene(QPointF(558, 495));
+            const auto distance = [&] { return homeScene->property("distance").toDouble(); };
+            const double homeDistance = distance();
+            wheelAt(overModel, -120);
+            require(distance() != homeDistance, "wheel zooms 3D when no panel is open");
+            const double zoomedDistance = distance();
+            click("settingsButton");
+            auto *preferences = item("preferencesScroll");
+            wheelAt(overModel, -120);
+            wait([&] { return preferences->property("contentY").toDouble() > 0; }, "preferences scroll inside the modal");
+            require(distance() == zoomedDistance, "scrolling preferences leaves 3D zoom unchanged");
+            wheelAt(canvas->mapToScene(QPointF(470, 500)), 120);
+            require(distance() == zoomedDistance, "wheel on the modal backdrop leaves 3D zoom unchanged");
+            click("closePopup");
+            wheelAt(overModel, 120);
+            require(distance() == homeDistance, "3D wheel input resumes after closing the modal");
+
+            click("assistantShortcut");
+            auto *conversation = item("assistantConversation");
+            auto *input = item("assistantText");
+            const double dockBottom = conversation->y() + conversation->height();
+            capture("01a-assistant-stationary");
+            click("assistantSettingsShortcut");
+            click("assistantSettingsBack");
+            require(window.property("popup").toString() == "assistant", "settings return to the originating conversation");
+            input->setProperty("text", QStringLiteral("现在还有多少电"));
+            click("assistantSend");
+            wait([&] { return item("assistantReply")->property("text").toString().contains("%"); }, "text query returns vehicle battery", 12000);
+            state.setGear("D");
+            require(state.gear() == "D" && state.speed() == 0 && input->isVisible(), "D at zero retains the stationary assistant");
+            require(!item("assistantSettingsShortcut")->isEnabled(), "assistant settings still require P");
+            state.setSpeed(40);
+            QTest::qWait(150);
+            require(!input->isVisible(), "moving assistant hides typing");
+            require(std::abs(conversation->y() + conversation->height() - dockBottom) < 0.1,
+                    "assistant uses the same bottom dock while moving");
+            capture("01b-assistant-moving");
+            state.parkVehicle();
+            require(input->isVisible(), "stationary assistant restores typing");
+            click("assistantShortcut");
+            click("settingsButton");
+            click("assistantPreferences");
+            click("assistantResetPlayback");
+            capture("01c-assistant-voice-settings");
+            click("assistantSettingsBack");
+            require(window.property("popup").toString() == "settings", "assistant settings return to display preferences");
+            click("closePopup");
             click("tab2");auto *scene=item("controlsVehicleScene");wait([&]{return scene->property("ready").toBool();},"3D controls ready");
             QTest::qWait(500);const auto closed=capture("02-window-closed");
             click("windowOpeningSlider",0.35);require(std::abs(state.windowActual()[0].toDouble()-35)<3,"actual UI percentage slider");require(!state.windowBusy()[0].toBool(),"drag release confirms without stale motion");
@@ -84,7 +147,7 @@ void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,Me
             click("climateButton");click("climateSync");click("driverTemperatureSlider",0.4);require(state.climateSync()&&state.driverTemperature()==state.passengerTemperature(),"dual climate sync");capture("17-climate");click("closePopup");
             click("tab3");if(!QMediaDevices::audioOutputs().isEmpty()){
             click("fullMusicPlay");require(music.playing(),"media play");wait([&]{return player.duration()>1000;},"local audio decode");click("trackRow0");require(!music.playing(),"current playlist row pauses");
-            const auto queue=music.playQueue();require(queue.size()==3,"current view defines built-in queue");const auto nextUrl=queue[(queue.indexOf(music.trackUrl())+1)%queue.size()];click("fullMusicNext");require(music.trackUrl()==nextUrl&&music.playing(),"next song follows visible queue order");wait([&]{return player.source()==QUrl(nextUrl)&&player.duration()>1000;},"queued audio decoded");music.seek(15000);QTest::qWait(250);require(player.position()>14000,"media seek");capture("18-music");
+            const auto queue=music.playQueue();require(queue.size()==3,"current view defines fixture queue");const auto nextUrl=queue[(queue.indexOf(music.trackUrl())+1)%queue.size()];click("fullMusicNext");require(music.trackUrl()==nextUrl&&music.playing(),"next song follows visible queue order");wait([&]{return player.source()==QUrl(nextUrl)&&player.duration()>1000;},"queued audio decoded");music.seek(12000);QTest::qWait(250);require(player.position()>11000,"media seek");capture("18-music");
             }else{require(!item("fullMusicPlay")->isEnabled()&&!music.playing(),"no-output music controls stay disabled");capture("18-music-no-output");qInfo()<<"Local audible playback skipped: Windows reports no audio outputs";}
             click("settingsButton");click("theme_night");require(state.night(),"theme preference");require(item("settingsTitle")->property("color").value<QColor>().lightness()>150,"night text remains readable");capture("19-settings-night");click("theme_day");click("closePopup");
             const auto before=state.snapshot();const auto beforeMusic=music.snapshot();window.setProperty("page",0);window.setProperty("popup","demo");QTest::qWait(100);click("autoDemoButton");require(window.property("demoRunning").toBool(),"start controlled demo");click("demoPauseInline");require(window.property("demoPaused").toBool(),"demo pause");click("demoNextInline");require(window.property("demoStep").toInt()==1,"single step");click("demoStopInline");require(!window.property("demoRunning").toBool()&&state.driverTemperature()==before["driver"].toDouble()&&music.volume()==beforeMusic["volume"].toInt(),"exit demo restores preferences and runtime");
@@ -105,7 +168,10 @@ void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,Me
             require(drive->property("travelMeters").toDouble()>phaseA+1,"road advances with speed");require(differentPixels(movingA,movingB,drive)>400,"driving changes actual scene pixels");
             auto *wheel=drive->findChild<QObject*>("wheels_wheels.2_0");require(wheel,"real tire model present");const float angle=wheel->property("eulerRotation").value<QVector3D>().x();require(std::abs(angle)>1,"wheel rotation is bound to moving tire mesh");
             const double trip=state.tripKm();click("drivePageFastForward");require(state.tripKm()>trip+0.6,"trip distance advances without navigation");
-            click("drivePageSpeed",0.7);require(state.speed()>65&&state.speed()<75,"visible speed adjustment");click("driveGearR");require(state.speed()<=15,"reverse speed limit");const double forwardPhase=drive->property("travelMeters").toDouble();QTest::qWait(250);require(drive->property("travelMeters").toDouble()<forwardPhase,"reverse animates road and wheels backwards");
+            const double driveSpeedMaximum = item("drivePageSpeed")->property("to").toDouble();
+            click("drivePageSpeed", 0.7);
+            require(state.speed() > 0.65 * driveSpeedMaximum && state.speed() < 0.75 * driveSpeedMaximum, "visible speed adjustment");
+            click("driveGearR");require(state.speed()<=15,"reverse speed limit");const double forwardPhase=drive->property("travelMeters").toDouble();QTest::qWait(250);require(drive->property("travelMeters").toDouble()<forwardPhase,"reverse animates road and wheels backwards");
             click("drivePark");const double parkedPhase=drive->property("travelMeters").toDouble();QTest::qWait(220);require(drive->property("travelMeters").toDouble()==parkedPhase&&state.speed()==0,"P stops wheel and road motion");capture("24-driving-parked");
             click("driveNavigation");click("searchDestination1");require(state.navigationActive()&&state.parked(),"planning retains P from driving view");click("simulatorButton");click("startDriving");require(window.property("page").toInt()==4&&state.navigationActive(),"driving view reuses planned route");click("drivePageFastForward");require(state.routeProgress()>0,"route progresses in driving view");capture("25-driving-route");click("drivePark");click("driveNavigation");click("endNavigation");
             click("tab0");const double clockCenter=item("statusClock")->mapToScene(QPointF(0,item("statusClock")->height()/2)).y();const double batteryCenter=item("statusBattery")->mapToScene(QPointF(0,item("statusBattery")->height()/2)).y();require(std::abs(clockCenter-batteryCenter)<0.1,"status groups share vertical center");capture("26-status-home");

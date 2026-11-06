@@ -8,11 +8,6 @@
 #include <cmath>
 
 MediaState::MediaState(QObject *parent) : QObject(parent) {
-    for (int i = 0; i < 3; ++i)
-        m_tracks.append(QVariantMap{
-            {"title", QStringList{QStringLiteral("沿途"), QStringLiteral("晚风"), QStringLiteral("山间")}[i]},
-            {"url", QString("qrc:/ui/audio/track%1.wav").arg(i)},
-            {"source", QStringLiteral("本地演示音源")}});
     m_preferencesEnabled = !qEnvironmentVariableIsSet("CAR_TERMINAL_NO_SETTINGS");
     m_settingsPath =
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/media-preferences.ini";
@@ -83,8 +78,8 @@ void MediaState::restoreSnapshot(const QVariantMap &s) {
     if (s.isEmpty())
         return;
     m_volume = std::clamp(s["volume"].toInt(), 0, 100);
-    m_track = std::clamp(s["track"].toInt(), 0, int(m_tracks.size()) - 1);
-    m_playing = s["playing"].toBool();
+    m_track = m_tracks.isEmpty() ? 0 : std::clamp(s["track"].toInt(), 0, int(m_tracks.size()) - 1);
+    m_playing = s["playing"].toBool() && musicAvailable(m_track);
     m_position = s["position"].toDouble();
     m_playMode = s["playMode"].toString();
     m_queueUrls = s["queue"].toStringList();
@@ -206,18 +201,19 @@ void MediaState::restoreMusicPosition(const QString &url, qint64 position) {
             resetMusicHistory();
             emit changed();
             emit positionChanged();
+            emit seekRequested(qint64(m_position));
             return;
         }
 }
 void MediaState::removeMusicTrack(int index) {
-    if (index < 3 || index >= m_tracks.size())
+    if (index < 0 || index >= m_tracks.size())
         return;
     const bool current = index == m_track;
     m_tracks.removeAt(index);
     if (index < m_track)
         --m_track;
     else if (current) {
-        m_track = qMin(m_track, int(m_tracks.size()) - 1);
+        m_track = m_tracks.isEmpty() ? 0 : qMin(m_track, int(m_tracks.size()) - 1);
         m_playing = false;
         m_position = m_duration = 0;
     }

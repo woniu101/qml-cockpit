@@ -101,10 +101,10 @@ void MusicLibrary::refreshLyricsIfChanged(){if(lyricsStamp(m_currentUrl)!=m_lyri
 void MusicLibrary::setLyricOffset(int value){value=std::clamp(value,-10000,10000);if(lyricOffset()==value)return;m_offsets[m_currentUrl]=value;updateLyricPosition();emit lyricsChanged();m_saveTimer.start();}
 void MusicLibrary::seekLyric(int index){if(index>=0&&index<m_lyrics.lines.size())m_state->seek(qMax(0LL,m_lyrics.lines[index].toMap().value("at").toLongLong()+lyricOffset()));}
 void MusicLibrary::toggleFavorite(int index){const auto row=m_state->tracks().value(index).toMap();if(row.isEmpty())return;m_state->updateTrackProperties(row.value("url").toString(),{{"favorite",!row.value("favorite").toBool()}});}
-void MusicLibrary::remove(int index){if(index<3)return;const auto row=m_state->tracks().value(index).toMap();if(row.isEmpty())return;const auto key=musicPathKey(QUrl(row.value("url").toString()).toLocalFile());m_excluded.insert(key);m_manualFiles.remove(key);m_state->removeMusicTrack(index);updateWatches();save();}
+void MusicLibrary::remove(int index){if(index<0)return;const auto row=m_state->tracks().value(index).toMap();if(row.isEmpty())return;const auto key=musicPathKey(QUrl(row.value("url").toString()).toLocalFile());m_excluded.insert(key);m_manualFiles.remove(key);m_state->removeMusicTrack(index);updateWatches();save();}
 void MusicLibrary::relocate(int index,const QUrl &url){
     if(scanning()){emit notice(QStringLiteral("扫描完成或停止后再重新定位"));return;}
-    if(index<3||index>=m_state->tracks().size()||!url.isLocalFile()||!supportedMusicFile(url.toLocalFile())||!QFileInfo(url.toLocalFile()).isFile()){emit notice(QStringLiteral("请选择有效的音乐文件"));return;}
+    if(index<0||index>=m_state->tracks().size()||!url.isLocalFile()||!supportedMusicFile(url.toLocalFile())||!QFileInfo(url.toLocalFile()).isFile()){emit notice(QStringLiteral("请选择有效的音乐文件"));return;}
     const auto key=musicPathKey(url.toLocalFile());for(int i=0;i<m_state->tracks().size();++i)if(i!=index&&QUrl(m_state->tracks()[i].toMap().value("url").toString()).isLocalFile()&&musicPathKey(QUrl(m_state->tracks()[i].toMap().value("url").toString()).toLocalFile())==key){emit notice(QStringLiteral("该文件已经在音乐库中"));return;}
     const auto old=m_state->tracks()[index].toMap();const bool wasCurrent=index==m_state->track();const QFileInfo file(url.toLocalFile());QVariantMap row{{"url",url.toString()},{"title",file.completeBaseName()},{"folder",file.absolutePath()},{"available",true},{"source",QStringLiteral("本地文件")},{"cover",sidecarCover(file.absoluteFilePath())},{"favorite",old.value("favorite")}};
     const auto oldKey=musicPathKey(QUrl(old.value("url").toString()).toLocalFile());if(oldKey!=key)m_excluded.insert(oldKey);m_manualFiles.remove(oldKey);
@@ -131,14 +131,14 @@ void MusicLibrary::load(){
         auto row=entry.toObject().toVariantMap();const QUrl url(row.value("url").toString());if(!url.isLocalFile()||!QDir::isAbsolutePath(url.toLocalFile())||!supportedMusicFile(url.toLocalFile()))continue;
         const auto key=musicPathKey(url.toLocalFile());if(seen.contains(key))continue;seen.insert(key);row["available"]=QFileInfo(url.toLocalFile()).isFile();row["source"]=QStringLiteral("本地文件");row["folder"]=QFileInfo(url.toLocalFile()).absolutePath();tracks<<row;
     }
-    m_state->mergeMusicTracks(tracks);for(const auto &entry:object.value("demoFavorites").toArray())m_state->updateTrackProperties(entry.toString(),{{"favorite",true}});
+    m_state->mergeMusicTracks(tracks);
     for(const auto &entry:object.value("manualFiles").toArray())m_manualFiles.insert(entry.toString());
     if(!object.contains("manualFiles"))for(const auto &entry:tracks){const auto path=QUrl(entry.toMap().value("url").toString()).toLocalFile();bool owned=false;for(const auto &root:m_roots)owned|=insideRoot(path,root);if(!owned)m_manualFiles.insert(musicPathKey(path));}
     if(object.contains("queue")&&object.value("queueExplicit").toBool(true)){QStringList urls;for(const auto &entry:object.value("queue").toArray())urls<<entry.toString();m_state->setPlayQueue(urls,object.value("queueLabel").toString(QStringLiteral("恢复的队列")));}
     m_state->restoreMusicPosition(object.value("lastUrl").toString(),qint64(object.value("position").toDouble()));
 }
 void MusicLibrary::save(){
-    if(!m_persist||m_loading||m_state->demoActive())return;QJsonArray tracks,favorites;for(const auto &entry:m_state->tracks()){const auto row=entry.toMap();if(QUrl(row.value("url").toString()).isLocalFile())tracks.append(QJsonObject::fromVariantMap(row));else if(row.value("favorite").toBool())favorites.append(row.value("url").toString());}
-    QJsonObject object{{"version",1},{"tracks",tracks},{"roots",QJsonArray::fromStringList(m_roots)},{"manualFiles",QJsonArray::fromStringList(m_manualFiles.values())},{"queue",QJsonArray::fromStringList(m_state->playQueue())},{"queueExplicit",m_state->hasExplicitQueue()},{"queueLabel",m_state->queueLabel()},{"excluded",QJsonArray::fromStringList(m_excluded.values())},{"demoFavorites",favorites},{"lastUrl",m_state->trackUrl()},{"position",m_state->position()},{"offsets",QJsonObject::fromVariantMap(m_offsets)}};
+    if(!m_persist||m_loading||m_state->demoActive())return;QJsonArray tracks;for(const auto &entry:m_state->tracks()){const auto row=entry.toMap();if(QUrl(row.value("url").toString()).isLocalFile())tracks.append(QJsonObject::fromVariantMap(row));}
+    QJsonObject object{{"version",1},{"tracks",tracks},{"roots",QJsonArray::fromStringList(m_roots)},{"manualFiles",QJsonArray::fromStringList(m_manualFiles.values())},{"queue",QJsonArray::fromStringList(m_state->playQueue())},{"queueExplicit",m_state->hasExplicitQueue()},{"queueLabel",m_state->queueLabel()},{"excluded",QJsonArray::fromStringList(m_excluded.values())},{"lastUrl",m_state->trackUrl()},{"position",m_state->position()},{"offsets",QJsonObject::fromVariantMap(m_offsets)}};
     QDir().mkpath(QFileInfo(m_storage).absolutePath());QSaveFile file(m_storage);if(!file.open(QIODevice::WriteOnly)||file.write(QJsonDocument(object).toJson())<0||!file.commit()){m_scanText=QStringLiteral("音乐库保存失败，请检查目录权限和磁盘空间");emit scanChanged();}
 }

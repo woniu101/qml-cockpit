@@ -86,7 +86,7 @@ void MediaState::removeQueueTrack(const QString &url) {
     emit queueChanged();
 }
 void MediaState::replaceMusicTrack(int index, const QVariantMap &row) {
-    if (index < 3 || index >= m_tracks.size())
+    if (index < 0 || index >= m_tracks.size())
         return;
     const auto previous = m_tracks[index].toMap().value("url").toString(), url = row.value("url").toString();
     if (url.isEmpty())

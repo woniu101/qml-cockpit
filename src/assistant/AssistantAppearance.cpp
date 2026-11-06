@@ -81,6 +81,12 @@ bool AssistantAppearance::load(const QUrl &url) {
         return false;
     }
     m_original = std::move(decoded);
+    const auto originalPath = m_temporary.filePath("original.png");
+    if (!writePng(originalPath, m_original)) {
+        status(QStringLiteral("无法准备裁切图片"));
+        return false;
+    }
+    m_originalUrl = versioned(originalPath, ++m_revision);
     crop(1, 50, 50);
     return !m_preview.isEmpty();
 }
@@ -88,6 +94,9 @@ bool AssistantAppearance::load(const QUrl &url) {
 void AssistantAppearance::crop(double zoom, double horizontal, double vertical) {
     if (m_original.isNull() || !std::isfinite(zoom) || !std::isfinite(horizontal) || !std::isfinite(vertical))
         return;
+    m_zoom = std::clamp(zoom, 1.0, 3.0);
+    m_horizontal = std::clamp(horizontal, 0.0, 100.0);
+    m_vertical = std::clamp(vertical, 0.0, 100.0);
     const int side = std::max(1, int(std::min(m_original.width(), m_original.height()) / std::clamp(zoom, 1.0, 3.0)));
     const int x = qRound((m_original.width() - side) * std::clamp(horizontal, 0.0, 100.0) / 100);
     const int y = qRound((m_original.height() - side) * std::clamp(vertical, 0.0, 100.0) / 100);
@@ -119,6 +128,9 @@ void AssistantAppearance::discard() {
     m_original = {};
     m_crop = {};
     m_preview = {};
+    m_originalUrl = {};
+    m_zoom = 1;
+    m_horizontal = m_vertical = 50;
     status({});
 }
 

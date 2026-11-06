@@ -29,11 +29,12 @@ public:
     void beginRequest(bool spoken);
     void answer(const QString &message, bool spoken);
     Reply vehicleReply();
+    static bool isTransportRequest(const QString &request);
 
 signals:
     void changed();
     void viewRequested(const QString &source);
-    void spokenReply(const QString &message);
+    void replyReady(const QString &message, bool voiceInput, bool announce);
 
 private:
     QVariantList items() const;
@@ -42,7 +43,7 @@ private:
     bool handleRadio(const QString &request);
     void waitForPlayback(const QString &kind, const QString &url, bool openView = true);
     void confirmPlayback();
-    void reply(const QString &message);
+    void reply(const QString &message, bool announce = true);
     MediaState &m_music;
     MediaSession &m_session;
     VideoLibrary &m_videos;

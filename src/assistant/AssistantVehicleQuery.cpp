@@ -1,12 +1,70 @@
 #include "AssistantVehicleQuery.h"
 #include "VehicleState.h"
 
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <QStringList>
 
 namespace {
 const QStringList names{QStringLiteral("左前"), QStringLiteral("右前"),
                         QStringLiteral("左后"), QStringLiteral("右后")};
+const QStringList modelTargets{"leftFront", "rightFront", "leftRear", "rightRear", "all"};
+
+int windowTargetMentioned(const QString &request) {
+    static const QRegularExpression target(QStringLiteral(
+        "左前|右前|左后|右后|副驾驶(?:位)?|副驾|主驾驶(?:位)?|驾驶位|主驾|全部|全车|所有|四个|四扇|四窗"));
+    auto matches = target.globalMatch(request);
+    int selected = -1;
+    while (matches.hasNext()) {
+        const auto word = matches.next().captured();
+        int index = int(names.indexOf(word));
+        if (index < 0)
+            index = word.startsWith(QStringLiteral("副驾")) ? 1
+                : word.contains(QChar(u'驾')) ? 0 : 4;
+        if (selected >= 0 && selected != index)
+            return -1;
+        selected = index;
+    }
+    return selected;
+}
+}
+
+QString assistantModelVehicleAnswer(const VehicleState &vehicle, const QString &request, const QJsonObject &result) {
+    const auto value = result.value("proposal");
+    if (result.value("speech_act").toString() != "QUERY" || !value.isObject() ||
+        result.value("confidence").toDouble() < 0.80)
+        return {};
+
+    static const QRegularExpression nonQuery(QStringLiteral(
+        "别|不要|不用|不必|不想|不需要|没有让|没让|没叫|没说|只是念|只是举例|这句话|这几个字|引用|翻译|假设|如果|"
+        "然后|同时|顺便|并(?:且|将|把|帮)|再把|(?:开到|调到|降到|设为|设置为|改成)(?:百分之|[0-9零一二三四五六七八九十])"));
+    if (nonQuery.match(request).hasMatch())
+        return {};
+
+    const auto intent = result.value("intent").toString();
+    const auto proposal = value.toObject();
+    QString answer;
+    if (intent == "BATTERY_QUERY" && proposal.isEmpty()) {
+        static const QRegularExpression battery(QStringLiteral(
+            "电量|电池|剩.{0,7}电|还有.{0,7}电|电.{0,5}剩|(?<![a-z0-9_])soc(?![a-z0-9_])"),
+            QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression asking(QStringLiteral("多少|几成|百分之几|百分比|查|看|报|读|显示|告诉|知道|什么数值"));
+        static const QRegularExpression otherMetric(QStringLiteral(
+            "寿命|健康|温度|电压|电流|功率|容量|衰减|续航|里程|充电|滤芯|手机|电脑|钥匙|车窗|后视镜"));
+        if (battery.match(request).hasMatch() && asking.match(request).hasMatch() && !otherMetric.match(request).hasMatch())
+            answer = assistantBatteryAnswer(vehicle);
+    } else if (intent == "WINDOW_QUERY" && proposal.size() == 1) {
+        static const QRegularExpression asking(QStringLiteral(
+            "开度|开了?多少|开了?多大|打开.{0,3}百分比|开着(?:没|吗)|"
+            "关(?:严|好|紧|上)(?:了)?(?:没|吗)|有没有.{0,4}(?:留缝|关|开)|"
+            "是否.{0,4}(?:关|开)|是不是.{0,4}(?:关|开)|开合状态|打开情况|车窗状态|(?:车)?窗(?:户)?的状态"));
+        const int index = int(modelTargets.indexOf(proposal.value("target").toString()));
+        if (index >= 0 && request.contains(QChar(u'窗')) && !request.contains(QStringLiteral("电量")) &&
+            asking.match(request).hasMatch() && windowTargetMentioned(request) == index)
+            answer = assistantWindowAnswer(vehicle, index == 4 ? -1 : index);
+    }
+    const auto ruleAnswer = assistantVehicleAnswer(vehicle, request);
+    return ruleAnswer.isEmpty() || ruleAnswer == answer ? answer : QString();
 }
 
 QString assistantBatteryAnswer(const VehicleState &vehicle) {

@@ -42,6 +42,7 @@ Item {
     VehicleScene {
         id: homeScene
         activeView: home.visible; objectName: "homeVehicleScene"
+        interactive: !home.shell.modalOpen
         x: 25; y: 300; width: 1050; height: 472; energyDetail: "detailed"
         framingOffset: Qt.point(40,-45)
         onReadyChanged: home.offerModelHint()

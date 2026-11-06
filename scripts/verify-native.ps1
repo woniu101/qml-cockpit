@@ -11,7 +11,7 @@ foreach($scale in $scales){
     $env:CAR_TERMINAL_SMOKE_DIR="artifacts/v6/$name"
     if($scale -eq '1.25'){$env:CAR_TERMINAL_SKIP_SOAK='1'}else{Remove-Item Env:CAR_TERMINAL_SKIP_SOAK -ErrorAction SilentlyContinue}
     $workspace=(Get-Location).Path
-    $run=Start-Process -FilePath "$workspace\build\CarTerminal.exe" -ArgumentList '--smoke-native' -WorkingDirectory $workspace -WindowStyle Normal -Wait -PassThru -RedirectStandardError "$workspace\artifacts\v6\$name.log" -RedirectStandardOutput "$workspace\artifacts\v6\$name-stdout.log"
+    $run=Start-Process -FilePath "$workspace\build\QmlCockpit.exe" -ArgumentList '--smoke-native' -WorkingDirectory $workspace -WindowStyle Normal -Wait -PassThru -RedirectStandardError "$workspace\artifacts\v6\$name.log" -RedirectStandardOutput "$workspace\artifacts\v6\$name-stdout.log"
     if($run.ExitCode -ne 0){throw "$name failed with exit code $($run.ExitCode); see artifacts/v6/$name.log"}
     Write-Output "$name passed"
 }

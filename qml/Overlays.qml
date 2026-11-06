@@ -2,16 +2,26 @@ import QtQuick
 Item {
     id: overlay
     required property var shell
-    anchors.fill:parent;visible:shell.popup!=="" && shell.popup!=="assistant"
-    Rectangle {anchors.fill:parent;color:"#23332f";opacity:0.18;MouseArea{anchors.fill:parent;onClicked:overlay.shell.popup=""}}
+    anchors.fill: parent; visible: shell.modalOpen
+    Rectangle {
+        anchors.fill: parent; color: "#23332f"; opacity: 0.18
+        MouseArea {
+            anchors.fill: parent
+            onClicked: overlay.shell.openPopup("")
+            onWheel: wheel => { wheel.accepted = true }
+        }
+    }
     Surface {
         id: panel
         x:overlay.shell.popup==="assistantSettings"?44:overlay.shell.popup==="climate"?410:510
         y:overlay.shell.popup==="assistantSettings"?80:overlay.shell.popup==="climate"?430:155
         width:overlay.shell.popup==="assistantSettings"?1512:overlay.shell.popup==="climate"?780:580
         height:overlay.shell.popup==="assistantSettings"?690:overlay.shell.popup==="climate"?333:610
-        MouseArea {anchors.fill:parent}
-        UiButton {objectName:"closePopup";x:parent.width-63;y:14;width:47;height:47;quiet:true;iconName:"close";z:10;onClicked:overlay.shell.popup=""}
+        MouseArea {
+            anchors.fill: parent
+            onWheel: wheel => { wheel.accepted = true }
+        }
+        UiButton {objectName:"closePopup";x:parent.width-63;y:14;width:47;height:47;quiet:true;iconName:"close";z:10;onClicked:overlay.shell.openPopup("")}
         Loader {
             id: contents;anchors.fill:parent;active:overlay.visible
             sourceComponent: ({assistantSettings:assistantSettingsComponent,weather:weatherComponent,musicQueue:musicManagerComponent,musicFolders:musicManagerComponent,videoFolders:videoFoldersComponent,bluetooth:bluetoothComponent,audio:audioComponent,system:systemComponent,source:vehicleSourceComponent,climate:climateComponent,destination:destinationComponent,settings:settingsComponent,notifications:notificationsComponent,driving:drivingComponent,demo:demoComponent,charging:chargingComponent})[overlay.shell.popup]||null

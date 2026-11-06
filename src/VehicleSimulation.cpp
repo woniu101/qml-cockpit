@@ -81,7 +81,7 @@ void VehicleState::setGear(const QString &value) {
 }
 void VehicleState::setSpeed(int value) {
     if(externalCommand("setSpeed",{{"value",value}},QStringLiteral("调整车速")))return;
-    value=std::clamp(value,0,m_gear=="R"?15:100);
+    value=std::clamp(value,0,m_gear=="R"?15:120);
     if((m_gear!="D"&&m_gear!="R") && value>0)return;
     if(value>0&&systemMode()&&!canDrive())return;
     if(value==m_speed)return;m_speed=value;emit changed();

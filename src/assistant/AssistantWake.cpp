@@ -1,4 +1,5 @@
 #include "AssistantWake.h"
+#include "AssistantAudioRoute.h"
 #include "AssistantAudioInput.h"
 
 #include <QAudioSource>
@@ -9,29 +10,46 @@
 #include <QUrl>
 
 AssistantWake::AssistantWake()
-    : m_worker(qEnvironmentVariable("CAR_TERMINAL_ASR_PYTHON"), qEnvironmentVariable("CAR_TERMINAL_KWS_WORKER"),
-               qEnvironmentVariable("CAR_TERMINAL_KWS_MODEL"), 10000) {
+    : m_worker(cockpit::InferenceKind::Wake, cockpit::modelDirectory(cockpit::InferenceKind::Wake)) {
     if (!qEnvironmentVariableIsSet("CAR_TERMINAL_NO_SETTINGS")) {
         const QSettings settings;
         m_keyword = settings.value("assistant/wakeKeyword", m_keyword).toString();
         m_enabled = settings.value("assistant/wakeEnabled", false).toBool();
+        m_bargeIn = settings.value("assistant/wakeBargeIn", false).toBool();
     }
     m_message = m_enabled ? QStringLiteral("正在准备离线唤醒") : QStringLiteral("当前使用按键说话");
     m_resume.setSingleShot(true);
     connect(&m_resume, &QTimer::timeout, this, &AssistantWake::drive);
-    connect(&m_worker, &AssistantWorker::completed, this, &AssistantWake::complete);
-    connect(&m_devices, &QMediaDevices::audioInputsChanged, this, [this] {
-        if (!m_enabled)
-            return;
-        stopCapture();
-        m_captureFailed = false;
-        drive();
-    });
+    connect(&m_worker, &AssistantInference::completed, this, &AssistantWake::complete);
+    connect(&m_devices, &QMediaDevices::audioInputsChanged, this, [this] { if (!m_route) resetInput(); });
     if (m_enabled)
         m_resume.start(0);
 }
 
 AssistantWake::~AssistantWake() { stopCapture(); }
+
+void AssistantWake::setInputRoute(AssistantAudioRoute *route) {
+    m_route = route;
+    connect(route, &AssistantAudioRoute::deviceChanged, this, &AssistantWake::resetInput);
+    resetInput();
+}
+
+void AssistantWake::resetInput() {
+    if (!m_enabled)
+        return;
+    stopCapture();
+    m_captureFailed = false;
+    drive();
+}
+
+void AssistantWake::setBargeIn(bool value) {
+    if (m_bargeIn == value)
+        return;
+    m_bargeIn = value;
+    if (!qEnvironmentVariableIsSet("CAR_TERMINAL_NO_SETTINGS"))
+        QSettings().setValue("assistant/wakeBargeIn", value);
+    emit changed();
+}
 
 void AssistantWake::setEnabled(bool value) {
     if (value == m_enabled)
@@ -185,7 +203,7 @@ void AssistantWake::startCapture() {
         captureFailed(QStringLiteral("唤醒模型未配置，可继续按键说话"));
         return;
     }
-    const auto device = QMediaDevices::defaultAudioInput();
+    const auto device = m_route ? m_route->device() : QMediaDevices::defaultAudioInput();
     if (device.isNull()) {
         captureFailed(QStringLiteral("找不到麦克风，连接后会重新尝试"));
         return;

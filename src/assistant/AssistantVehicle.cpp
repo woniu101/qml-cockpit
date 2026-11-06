@@ -64,7 +64,7 @@ bool AssistantVehicle::submit(const QString &request, Reply reply, bool spoken) 
         execute(*setting, reply);
         return true;
     }
-    if (handleWindows(phrase, reply) || handleClimate(phrase, reply))
+    if (handleWindows(phrase, reply) || handleClimate(phrase, reply, spoken))
         return true;
 
     const auto answer = assistantVehicleAnswer(m_vehicle, phrase);
@@ -132,11 +132,11 @@ void AssistantVehicle::execute(const AssistantVehicleSetting &setting, const Rep
     reply(success ? label.arg(actual) : QStringLiteral("空调温度设置未确认"), true);
 }
 
-bool AssistantVehicle::handleClimate(const QString &phrase, const Reply &reply) {
+bool AssistantVehicle::handleClimate(const QString &phrase, const Reply &reply, bool spoken) {
     static const QRegularExpression fan(QStringLiteral(
-        "^(?:请帮我|请|帮我)?(?:把)?(?:空调)?风量(?:调到|调至|设为)([0-9零〇一二两三四五六七八九十]{1,2})[挡档]$"));
+        "^(?:请帮我|请|帮我|麻烦)?(?:把)?(?:空调)?风量(?:调到|调至|设为|掉到|掉至|给我来)([0-9零〇一二两三四五六七八九十]{1,2})([挡档当])(?:吧)?$"));
     const auto fanSetting = fan.match(phrase);
-    if (fanSetting.hasMatch()) {
+    if (fanSetting.hasMatch() && (spoken || (fanSetting.captured(2) != QStringLiteral("当") && !phrase.contains(QChar(u'掉'))))) {
         const int target = assistantCommandInteger(fanSetting.captured(1));
         if (target < 0 || target > 7)
             reply(QStringLiteral("空调风量范围是 0 到 7 挡"), true);

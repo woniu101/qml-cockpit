@@ -7,10 +7,15 @@ ApplicationWindow {
     height: Math.max(630,Math.min(900,Screen.desktopAvailableHeight-64))
     minimumWidth: 1120; minimumHeight: 630
     visible: true; color: Theme.background
-    title: "Car Terminal · 智能座舱演示"
+    title: "QML Cockpit · 智能座舱"
     font.family: "Microsoft YaHei UI"
     property int page: AppRoutes.Home
     property string popup: ""
+    readonly property bool modalOpen: popup !== "" && popup !== "assistant"
+    Binding { target: AssistantWake; property: "uiBlocked"; value: shell.modalOpen }
+    property string assistantSettingsReturn: "settings"
+    property string pendingAssistantExit: ""
+    property bool assistantDraftPrompt: false
     property string toastMessage: ""
     property string toastKind: "info"
     property string lastNotification: ""
@@ -18,7 +23,9 @@ ApplicationWindow {
     property string clockText: "16:28"
     property string dateText: "11月2日 周一"
     property string arrivalText: "16:46"
-    property string greetingText: "下午好，林先生"
+    readonly property string profileSurname: "周"
+    readonly property string profileDisplayName: profileSurname + "先生"
+    property string greetingText: "下午好，" + profileDisplayName
     property bool testMode: false
     property double ignoreDemoInputUntil: 0
     property bool pendingDrivingView: false
@@ -38,7 +45,45 @@ ApplicationWindow {
     }
     function showPage(index){if(page===AppRoutes.MediaCenter&&index!==AppRoutes.MediaCenter)Media.videoPageLeft();page=index;popup=""}
     function showMedia(kind){showPage(AppRoutes.MediaCenter);mediaPage.openSource(kind)}
-    function openPopup(name){Media.fullscreen=false;popup=name}
+    function openPopup(name) {
+        if (popup === "assistantSettings" && name !== "assistantSettings") {
+            pendingAssistantExit = name
+            if (AssistantVoice.dirty || AssistantAppearance.preview.toString() !== "") {
+                AssistantVoice.cancelRecording()
+                AssistantSpeech.cancel()
+                assistantDraftPrompt = true
+                return
+            }
+            finishAssistantExit(true)
+            return
+        }
+        Media.fullscreen = false
+        popup = name
+    }
+    function finishAssistantExit(keep) {
+        AssistantVoice.cancelRecording()
+        AssistantSpeech.cancel()
+        AssistantVoice.stop()
+        if (!keep) {
+            AssistantVoice.discardDraft()
+            AssistantAppearance.discard()
+        }
+        assistantDraftPrompt = false
+        popup = pendingAssistantExit
+    }
+    function closeAssistant() {
+        AssistantVoice.stop()
+        popup = ""
+    }
+    function openAssistantSettings(from) {
+        if (!Vehicle.parked) return
+        assistantSettingsReturn = from
+        openPopup("assistantSettings")
+    }
+    function returnFromAssistantSettings() {
+        if (assistantSettingsReturn === "assistant") Assistant.clearFeedback()
+        openPopup(assistantSettingsReturn)
+    }
     Connections {
         target: AssistantWake
         function onActivated() { shell.openPopup("assistant") }
@@ -63,12 +108,13 @@ ApplicationWindow {
         const now=new Date(),hour=now.getHours()
         clockText=Qt.formatTime(now,"hh:mm")
         dateText=Qt.formatDate(now,"M月d日")+" "+["周日","周一","周二","周三","周四","周五","周六"][now.getDay()]
-        greetingText=hour<6?"夜深了，林先生":hour<12?"上午好，林先生":hour<18?"下午好，林先生":"晚上好，林先生"
+        const greeting = hour < 6 ? "夜深了" : hour < 12 ? "上午好" : hour < 18 ? "下午好" : "晚上好"
+        greetingText = greeting + "，" + profileDisplayName
         arrivalText=Qt.formatTime(new Date(now.getTime()+Vehicle.remainingMinutes*60000),"hh:mm")
     }
     Component.onCompleted: updateClock()
     Shortcut { sequence: "F11"; onActivated: shell.toggleFullScreen() }
-    Shortcut { sequence: "Escape"; onActivated: {if(Media.fullscreen)Media.fullscreen=false;else if(shell.popup!=="")shell.popup="";else if(demo.running)demo.stop();else if(shell.visibility===Window.FullScreen)shell.visibility=Window.Windowed} }
+    Shortcut { sequence: "Escape"; onActivated: {if(Media.fullscreen)Media.fullscreen=false;else if(shell.assistantDraftPrompt)shell.assistantDraftPrompt=false;else if(shell.popup==="assistant")shell.closeAssistant();else if(shell.popup!=="")shell.openPopup("");else if(demo.running)demo.stop();else if(shell.visibility===Window.FullScreen)shell.visibility=Window.Windowed} }
     Timer { interval: 1000; repeat: true; running: true; onTriggered: {shell.updateClock();if(!shell.testMode&&!(demo.running&&demo.paused))Vehicle.advanceSimulation(1)} }
     Timer { id: toastTimer; onTriggered: {shell.toastMessage="";if(shell.feedbackQueue.length){const next=shell.feedbackQueue[0];shell.feedbackQueue=shell.feedbackQueue.slice(1);shell.notify(next.message,next.kind)}} }
     DemoController { id: demo; shell: shell }
@@ -76,7 +122,13 @@ ApplicationWindow {
         target: Vehicle
         function onToast(message,kind){if(kind==="warning")shell.pendingDrivingView=false;shell.notify(message,kind)}
         function onChanged(){
-            if (!Vehicle.parked && shell.popup === "assistantSettings") shell.popup = ""
+            if (!Vehicle.parked && shell.popup === "assistantSettings") {
+                AssistantVoice.cancelRecording()
+                AssistantSpeech.cancel()
+                AssistantVoice.stop()
+                shell.assistantDraftPrompt = false
+                shell.popup = ""
+            }
             if(shell.pendingDrivingView&&Vehicle.externalReady&&Vehicle.gear==="D"&&Vehicle.speed>0){shell.pendingDrivingView=false;shell.showPage(AppRoutes.Driving)}
         }
         function onVisualReset(){shell.toastMessage="";shell.feedbackQueue=[];toastTimer.stop()}

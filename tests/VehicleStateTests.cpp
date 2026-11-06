@@ -112,11 +112,13 @@ private slots:
         QCOMPARE(vehicle.passengerTemperature(), 23.0);
         QVERIFY(assistant.submit(QStringLiteral("空调风量调到四档"), reply));
         QCOMPARE(vehicle.fan(), 4);
-        QVERIFY(!assistant.submit(QStringLiteral("风量掉到三档"), reply, true));
+        QVERIFY(!assistant.submit(QStringLiteral("风量掉到三档"), reply));
         QCOMPARE(vehicle.fan(), 4);
+        QVERIFY(assistant.submit(QStringLiteral("风量掉到三档"), reply, true));
+        QCOMPARE(vehicle.fan(), 3);
         QVERIFY(assistant.submit(QStringLiteral("风量调到八挡"), reply));
         QVERIFY(message.contains(QStringLiteral("范围")));
-        QCOMPARE(vehicle.fan(), 4);
+        QCOMPARE(vehicle.fan(), 3);
         vehicle.setAcOn(true);
         QVERIFY(!assistant.submit(QStringLiteral("别关掉空调制冷"), reply, true));
         QVERIFY(vehicle.acOn());

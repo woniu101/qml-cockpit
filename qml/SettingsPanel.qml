@@ -6,6 +6,7 @@ Item {
     required property var shell
     App.Label { objectName: "settingsTitle"; x: 30; y: 27; text: "显示与偏好"; font.pixelSize: 28 }
     Flickable {
+        objectName: "preferencesScroll"
         x: 30; y: 99; width: 520; height: 425; clip: true; contentHeight: content.height; boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar {policy:ScrollBar.AsNeeded}
         Column {
@@ -13,7 +14,7 @@ Item {
             App.Label { text: "外观主题"; font.pixelSize: 22 }
             Row { spacing: 12; Repeater { model: [{key:"day",title:"日间"},{key:"night",title:"夜间"},{key:"auto",title:"自动"}]; UiButton { required property var modelData; objectName:"theme_"+modelData.key; width:165;height:51;text:modelData.title;selected:Vehicle.themeMode===modelData.key;onClicked:Vehicle.themeMode=modelData.key } } }
             App.Label { width: parent.width; text: "自动主题在 18:00—06:00 使用夜间外观。"; font.pixelSize: 16; color: Theme.muted }
-            UiButton { width:parent.width;height:56;text:"座舱助手";iconName:"mic";enabled:Vehicle.parked;onClicked:settings.shell.openPopup("assistantSettings") }
+            UiButton { objectName: "assistantPreferences"; width:parent.width;height:56;text:Vehicle.parked ? "座舱助手" : "座舱助手 · 请挂 P 挡后设置";iconName:"mic";enabled:Vehicle.parked;onClicked:settings.shell.openAssistantSettings("settings") }
             UiButton { objectName:"autoFocusSetting"; width:parent.width;height:56;text:Vehicle.autoFocus?"部件自动定位：开启":"部件自动定位：关闭";selected:Vehicle.autoFocus;onClicked:Vehicle.autoFocus=!Vehicle.autoFocus }
             App.Label { text: "3D 画质"; font.pixelSize: 22 }
             Row { spacing: 14; Repeater {model:[{key:"standard",title:"标准"},{key:"high",title:"高画质"}];UiButton {required property var modelData;objectName:"quality_"+modelData.key;width:253;height:51;text:modelData.title;selected:Vehicle.quality===modelData.key;onClicked:Vehicle.quality=modelData.key} } }

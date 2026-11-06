@@ -112,7 +112,7 @@ void MusicLibrary::removeRoot(const QString &path){
     if(scanning()){emit notice(QStringLiteral("扫描完成或停止后再移除目录"));return;}
     int at=-1;for(int i=0;i<m_roots.size();++i)if(musicPathKey(m_roots[i])==musicPathKey(path))at=i;if(at<0)return;
     const auto removed=m_roots.takeAt(at);int count=0;
-    for(int i=m_state->tracks().size()-1;i>=3;--i){const QUrl url(m_state->tracks()[i].toMap().value("url").toString());if(!url.isLocalFile()||!inside(url.toLocalFile(),removed)||m_manualFiles.contains(musicPathKey(url.toLocalFile())))continue;
+    for(int i=m_state->tracks().size()-1;i>=0;--i){const QUrl url(m_state->tracks()[i].toMap().value("url").toString());if(!url.isLocalFile()||!inside(url.toLocalFile(),removed)||m_manualFiles.contains(musicPathKey(url.toLocalFile())))continue;
         bool shared=false;for(const auto &root:m_roots)shared|=inside(url.toLocalFile(),root);if(!shared){m_state->removeMusicTrack(i);++count;}}
     m_directories.clear();for(const auto &root:m_roots)m_directories<<root;m_group.clear();m_rescanPending=false;updateWatches();save();emit changed();emit notice(QStringLiteral("已移除目录及 %1 个独占条目，原文件保留").arg(count));
 }

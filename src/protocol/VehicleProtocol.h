@@ -35,7 +35,7 @@ inline bool number(const QJsonValue &v,double minimum,double maximum,bool intege
     return v.isDouble()&&std::isfinite(v.toDouble())&&v.toDouble()>=minimum&&v.toDouble()<=maximum&&(!integer||std::floor(v.toDouble())==v.toDouble());
 }
 inline bool validState(const QJsonObject &s) {
-    if(!number(s["soc"],0,100)||!number(s["speed"],0,100,true)||!number(s["tripKm"],0,1e9)||!number(s["forwardKm"],0,1e9)||!number(s["chargeTarget"],50,100,true)||!number(s["chargePower"],0,350))return false;
+    if(!number(s["soc"],0,100)||!number(s["speed"],0,120,true)||!number(s["tripKm"],0,1e9)||!number(s["forwardKm"],0,1e9)||!number(s["chargeTarget"],50,100,true)||!number(s["chargePower"],0,350))return false;
     const auto gear=s["gear"].toString();if(!QStringList{"P","R","N","D"}.contains(gear))return false;
     if(((gear=="P"||gear=="N")&&s["speed"].toInt()!=0)||(gear=="R"&&s["speed"].toInt()>15))return false;
     for(const char *key:{"locked","hood","hatch","hoodMoving","hatchMoving","mirrors","port","plugged","charging"})if(!s[key].isBool())return false;

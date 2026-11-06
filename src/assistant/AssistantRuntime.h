@@ -23,4 +23,6 @@ private:
     AssistantAppearance m_appearance;
     AssistantWake m_wake;
     QTimer m_wakeSync;
+    QTimer m_followUp;
+    QTimer m_wakeCapture;
 };

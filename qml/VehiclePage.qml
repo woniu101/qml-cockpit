@@ -53,6 +53,7 @@ Item {
     VehicleScene {
         id: vehicleScene; objectName: "controlsVehicleScene"; x: 260; y: 213; width: 885; height: 460
         activeView: vehiclePageRoot.visible
+        interactive: !vehiclePageRoot.shell.modalOpen
         energyDetail: vehiclePageRoot.section===5?"detailed":"ambient"
         selectedPart: vehiclePageRoot.selectedPart; selectedCaption: vehiclePageRoot.selectedPart==="port"?"充电口":vehiclePageRoot.partTitle()
         onPartTapped: part=>{

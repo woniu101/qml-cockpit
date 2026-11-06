@@ -11,6 +11,10 @@
 #include <cmath>
 
 namespace {
+const QRegularExpression Skip(QStringLiteral("^(?:请|帮我)?(?:切到|播放|切换到)?(上一首|下一首)(?:歌)?$"));
+const QRegularExpression Volume(QStringLiteral("^(?:请|帮我)?(?:把)?(?:媒体)?音量(调到|调至|设为|提高|降低|调高|调低)(?:百分之)?([0-9零〇一二两三四五六七八九十百]{1,5})%?$"));
+const QRegularExpression Seek(QStringLiteral("^(?:请|帮我)?(音乐|视频)?(快进|快退)([0-9零〇一二两三四五六七八九十百]{1,5})(秒|分钟)$"));
+const QRegularExpression Pause(QStringLiteral("^(?:请|帮我)?(暂停|继续)(?:播放)?(音乐|视频)?$"));
 QString normalized(const QString &text) {
     static const QRegularExpression cjkSpacing(QStringLiteral("(?<=\\p{Han})\\s+|\\s+(?=\\p{Han})"));
     return text.normalized(QString::NormalizationForm_C).simplified().remove(cjkSpacing).toCaseFolded();
@@ -21,6 +25,12 @@ bool available(const QVariantMap &item) {
     return url.isLocalFile() && item.value("available", true).toBool() && QFileInfo(url.toLocalFile()).isFile();
 }
 
+}
+
+bool AssistantMedia::isTransportRequest(const QString &text) {
+    auto request=text.trimmed();
+    while(!request.isEmpty() && QStringLiteral("。！？?!").contains(request.back())) request.chop(1);
+    return Skip.match(request).hasMatch() || Volume.match(request).hasMatch() || Seek.match(request).hasMatch() || Pause.match(request).hasMatch();
 }
 
 AssistantMedia::AssistantMedia(MediaState &music, MediaSession &session, VideoLibrary &videos,
@@ -51,15 +61,14 @@ QVariantList AssistantMedia::items() const {
     return results;
 }
 
-void AssistantMedia::reply(const QString &message) {
+void AssistantMedia::reply(const QString &message, bool announce) {
     m_deadline.stop();
     m_pendingUrl.clear();
     m_seekTarget = -1;
     m_pending = false;
     m_message = message;
     emit changed();
-    if (m_spoken)
-        emit spokenReply(message);
+    emit replyReady(message, m_spoken, announce);
 }
 
 void AssistantMedia::beginRequest(bool spoken) {
@@ -109,8 +118,7 @@ void AssistantMedia::submit(const QString &text, bool spoken) {
         return;
     if (handleMediaControl(request) || handleRadio(request))
         return;
-    static const QRegularExpression controls(QStringLiteral("^(?:请|帮我)?(暂停|继续)(?:播放)?(音乐|视频)?$"));
-    const auto control = controls.match(request);
+    const auto control = Pause.match(request);
     if (control.hasMatch()) {
         const QString kind = m_session.kind();
         const QString source = control.captured(2);
@@ -121,7 +129,7 @@ void AssistantMedia::submit(const QString &text, bool spoken) {
         }
         if (control.captured(1) == QStringLiteral("暂停")) {
             m_session.pause();
-            reply(m_session.playing() ? QStringLiteral("播放器暂未确认暂停") : QStringLiteral("已暂停"));
+            reply(m_session.playing() ? QStringLiteral("播放器暂未确认暂停") : QStringLiteral("已暂停"), m_session.playing());
             return;
         }
         const QString url = kind == "music" ? m_music.trackUrl() : m_session.itemId();
@@ -143,7 +151,19 @@ void AssistantMedia::submit(const QString &text, bool spoken) {
         QStringLiteral("^(?:请帮我|请|帮我|给我)?(播放|放一首|我想听|我想看)\\s*(.+)$"));
     const auto match = playRequest.match(request);
     if (!match.hasMatch() || request.size() > 160) {
-        reply(QStringLiteral("可以点播本地媒体、查询车辆状态、关闭左前车窗或设置主驾温度"));
+        static const QRegularExpression comfort(QStringLiteral("^(?:我|车里|现在)?(?:有点|有一点|太|好)(?:热|冷)(?:了)?$"));
+        if (comfort.match(normalized(request)).hasMatch())
+            reply(QStringLiteral("想调整空调还是车窗？请说出具体位置和调整方式。"));
+        else if (request.contains(QStringLiteral("温度")) || request.contains(QStringLiteral("空调")))
+            reply(QStringLiteral("没理解这次的空调调整，请说出温区和目标，例如「主驾温度调高一点」。"));
+        else if (request.contains(QStringLiteral("窗")))
+            reply(QStringLiteral("没理解要调整哪扇车窗，可以说「左前窗开到30%」，或补充窗位。"));
+        else if (request.contains(QStringLiteral("播放")) || request.contains(QStringLiteral("音乐")))
+            reply(QStringLiteral("没理解播放请求，可以说出歌名，或说「暂停音乐」。"));
+        else if (request == QStringLiteral("帮助") || request == QStringLiteral("你能做什么"))
+            reply(QStringLiteral("我可以调整车窗和空调、查询车辆状态，以及播放本地音乐、视频和收藏电台。"));
+        else
+            reply(QStringLiteral("没理解这次的指令，请换一种说法。"));
         return;
     }
     const QString verb = match.captured(1);
@@ -201,8 +221,7 @@ bool AssistantMedia::handleRadio(const QString &request) {
 }
 
 bool AssistantMedia::handleMediaControl(const QString &request) {
-    static const QRegularExpression skip(QStringLiteral("^(?:请|帮我)?(?:切到|播放|切换到)?(上一首|下一首)(?:歌)?$"));
-    const auto track = skip.match(request);
+    const auto track = Skip.match(request);
     if (track.hasMatch()) {
         if (m_session.kind() != "music" || !m_session.outputAvailable()) {
             reply(QStringLiteral("请先打开本地音乐并连接音频输出"));
@@ -218,9 +237,7 @@ bool AssistantMedia::handleMediaControl(const QString &request) {
         return true;
     }
 
-    static const QRegularExpression volume(QStringLiteral(
-        "^(?:请|帮我)?(?:把)?(?:媒体)?音量(调到|调至|设为|提高|降低|调高|调低)(?:百分之)?([0-9零〇一二两三四五六七八九十百]{1,5})%?$"));
-    const auto level = volume.match(request);
+    const auto level = Volume.match(request);
     if (level.hasMatch()) {
         const int value = assistantCommandInteger(level.captured(2));
         const QString mode = level.captured(1);
@@ -233,14 +250,12 @@ bool AssistantMedia::handleMediaControl(const QString &request) {
             reply(QStringLiteral("媒体音量范围是 0 到 100%"));
         else {
             m_music.setVolume(target);
-            reply(QStringLiteral("媒体音量 %1%").arg(m_music.volume()));
+            reply(QStringLiteral("媒体音量 %1%").arg(m_music.volume()), false);
         }
         return true;
     }
 
-    static const QRegularExpression seek(QStringLiteral(
-        "^(?:请|帮我)?(音乐|视频)?(快进|快退)([0-9零〇一二两三四五六七八九十百]{1,5})(秒|分钟)$"));
-    const auto offset = seek.match(request);
+    const auto offset = Seek.match(request);
     if (!offset.hasMatch())
         return false;
     const QString kind = m_session.kind();
@@ -357,13 +372,13 @@ void AssistantMedia::confirmPlayback() {
         reply(QStringLiteral("播放失败：%1").arg(m_session.error()));
     } else if (m_seekTarget >= 0) {
         if (std::abs(m_session.position() - m_seekTarget) < 450)
-            reply(QStringLiteral("已跳到 %1 秒").arg(qRound(m_session.position() / 1000.0)));
+            reply(QStringLiteral("已跳到 %1 秒").arg(qRound(m_session.position() / 1000.0)), false);
     } else if (!m_session.outputAvailable() && (m_pendingKind == "music" || m_session.hasAudio())) {
         reply(QStringLiteral("没有可用音频输出，请连接扬声器或耳机"));
     } else if ((m_pendingKind == "radio" ? m_session.player()->hasAudio() : m_session.player()->source() == QUrl(m_pendingUrl)) &&
                m_session.playing() && m_session.player()->position() > 0) {
         const QString kind = m_pendingKind;
-        reply((kind == "radio" ? QStringLiteral("正在收听 %1") : QStringLiteral("正在播放 %1")).arg(m_session.title()));
+        reply((kind == "radio" ? QStringLiteral("正在收听 %1") : QStringLiteral("正在播放 %1")).arg(m_session.title()), kind == "radio" && m_openView);
         if (m_openView)
             emit viewRequested(kind);
     }

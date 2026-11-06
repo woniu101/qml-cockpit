@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlComponent>
@@ -44,6 +45,7 @@ int main(int argc,char *argv[]) {
     if(systemProbe||deviceProbe||deviceQmlCheck){qputenv("CAR_TERMINAL_NO_SETTINGS","1");qputenv("QT_FORCE_STDERR_LOGGING","1");}
     if(smoke){if(!native)qputenv("QSG_RENDER_LOOP","basic");qputenv("QT_FORCE_STDERR_LOGGING","1");qputenv("CAR_TERMINAL_NO_SETTINGS","1");}
     QGuiApplication app(argc,argv);app.setApplicationName("CarTerminal");app.setOrganizationName("CarTerminalDemo");QQuickStyle::setStyle("Basic");
+    app.setWindowIcon(QIcon(":/branding/app.ico"));
     QAudioOutput audio;AudioDevices outputs(&audio);BluetoothStatus bluetooth(nullptr,!deviceSmoke&&!deviceQmlCheck);
     BluetoothAudio receiver(nullptr,deviceSmoke?deviceReceiverFixture():BluetoothAudio::Factory{},(!smoke||deviceSmoke)&&!deviceQmlCheck);receiver.setOutputAvailable(outputs.available());
     QQmlApplicationEngine engine;QStringList warnings;
@@ -76,7 +78,7 @@ int main(int argc,char *argv[]) {
     }
     if(deviceQmlCheck){
         BluetoothSnapshot fixture;fixture.state="on";fixture.adapters={QVariantMap{{"name",QStringLiteral("测试适配器")},{"state","on"}}};fixture.devices={QVariantMap{{"name",QStringLiteral("测试键盘")},{"kind",QStringLiteral("低功耗蓝牙")},{"connected",true},{"connectionKnown",true}}};bluetooth.applySnapshot(fixture);
-        QQmlComponent stub(&engine);stub.setData("import QtQml\nQtObject { property string clockText: '16:28'; property string popup: ''; property int page: 0; property bool demoRunning: false; function formatTime(value) { return '00:00' } function openPopup(name) {} function showPage(index) {} function inspectPart(part) {} }",QUrl());
+        QQmlComponent stub(&engine);stub.setData("import QtQml\nQtObject { property string clockText: '16:28'; property string profileSurname: 'T'; property string profileDisplayName: 'Test User'; property string popup: ''; property int page: 0; property bool demoRunning: false; function formatTime(value) { return '00:00' } function openPopup(name) {} function showPage(index) {} function inspectPart(part) {} }",QUrl());
         std::unique_ptr<QObject> shell(stub.create());if(!shell)return 2;QJsonArray checked;qsizetype windowObjects=0;
         for(const auto &name:QStringList{"AudioPanel","WeatherPanel","BluetoothPanel","MediaPage","MusicManagerPanel","StatusBar","BottomBar","MediaCard","AssistantPanel","AssistantSettings","AssistantVoicePanel","AssistantAppearancePanel","AssistantDiagnosticsPanel","AssistantWakePanel"}){
             QQmlComponent component(&engine);component.loadFromModule("CarTerminal",name);QVariantMap properties;

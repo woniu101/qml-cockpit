@@ -142,7 +142,7 @@ Item {
                 }
                 onClicked: {
                     if (bar.shell.popup === "assistant") {
-                        bar.shell.popup = ""
+                        bar.shell.closeAssistant()
                     } else {
                         if (!AssistantNlu.busy && !AssistantVoice.busy && !AssistantVoice.playing)
                             Assistant.clearFeedback()

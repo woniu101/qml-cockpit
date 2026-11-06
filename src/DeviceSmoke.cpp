@@ -2,6 +2,8 @@
 #include "AudioDevices.h"
 #include "BluetoothStatus.h"
 #include "media/MediaState.h"
+#include "MusicFixture.h"
+#include <QTemporaryDir>
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QQuickItem>
@@ -45,6 +47,10 @@ void runDeviceSmoke(QGuiApplication &app,QQuickWindow &window,MediaState &vehicl
         auto capture=[&](const QString &name){window.setProperty("toastMessage","");window.setProperty("feedbackQueue",QVariantList{});QTest::qWait(250);require(window.grabWindow().save(directory+"/"+name+".png"),"device screenshot");};
         int actualRoutes=0;
         try{
+            QTemporaryDir fixture;
+            const auto audio = fixture.filePath("device-test.wav");
+            require(writeMusicFixture(audio), "device audio fixture");
+            vehicle.importTracks({QUrl::fromLocalFile(audio)});
             for(const auto &state:QStringList{"absent","off","disabled","unknown","denied","error","on"}){
                 BluetoothSnapshot sample;sample.state=state;
                 if(state=="on"){

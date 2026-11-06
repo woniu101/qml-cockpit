@@ -9,6 +9,6 @@ Remove-Item Env:QSG_RENDER_LOOP -ErrorAction SilentlyContinue
 $name=if($Scale -eq '1'){'native'}else{'dpi125'}
 $env:CAR_TERMINAL_SYSTEM_OUTPUT="artifacts/system/$name"
 New-Item -ItemType Directory -Path $env:CAR_TERMINAL_SYSTEM_OUTPUT -Force | Out-Null
-$run=Start-Process -FilePath "$workspace\build\CarTerminal.exe" -ArgumentList '--system-smoke' -WorkingDirectory $workspace -WindowStyle Normal -Wait -PassThru -RedirectStandardError "$workspace\artifacts\system\$name.log" -RedirectStandardOutput "$workspace\artifacts\system\$name-out.log"
+$run=Start-Process -FilePath "$workspace\build\QmlCockpit.exe" -ArgumentList '--system-smoke' -WorkingDirectory $workspace -WindowStyle Normal -Wait -PassThru -RedirectStandardError "$workspace\artifacts\system\$name.log" -RedirectStandardOutput "$workspace\artifacts\system\$name-out.log"
 if($run.ExitCode -ne 0){throw "System UI failed: $($run.ExitCode), see artifacts/system/$name.log"}
 Write-Output "PASS system UI ($Scale): artifacts/system/$name"

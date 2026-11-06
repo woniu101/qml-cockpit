@@ -24,6 +24,7 @@ Item {
         x: 400; y: 165; width: 1150; height: 440; clip: true
         VehicleScene {
             id: driveScene; objectName: "drivingVehicleScene"; x: 14; y: 14; width: parent.width-28; height: 326; drivingMode: true; energyDetail: "off"; activeView: drivingPage.visible
+            interactive: !drivingPage.shell.modalOpen
             animationPaused: drivingPage.shell.demoRunning&&drivingPage.shell.demoPaused
             yaw: 145; elevation: -18; distance: 710
         }
@@ -47,7 +48,7 @@ Item {
             }
         }
         Label { x: 350; y: 18; text: "模拟车速 · "+Vehicle.speed+" km/h"; font.pixelSize: 17; color: Theme.muted }
-        SoftSlider { objectName: "drivePageSpeed"; x: 340; y: 57; width: 320; height: 48; from: 0; to: Vehicle.gear==="R"?15:100; stepSize: 1; value: Vehicle.speed; enabled: Vehicle.gear==="D"||Vehicle.gear==="R"; onMoved: Vehicle.speed=Math.round(value) }
+        SoftSlider { objectName: "drivePageSpeed"; x: 340; y: 57; width: 320; height: 48; from: 0; to: Vehicle.gear==="R"?15:120; stepSize: 1; value: Vehicle.speed; enabled: Vehicle.gear==="D"||Vehicle.gear==="R"; onMoved: Vehicle.speed=Math.round(value) }
         UiButton { objectName: "driveResume"; x: 700; y: 50; width: 225; height: 60; text: Vehicle.speed>0?"恢复 40 km/h":"开始行驶 40 km/h"; textSize: 19; primary: true; onClicked: Vehicle.startDriving() }
         UiButton { objectName: "drivePark"; x: 945; y: 50; width: 205; height: 60; text: "挂 P 挡驻车"; textSize: 19; selected: Vehicle.parked; onClicked: Vehicle.parkVehicle() }
         UiButton { objectName: "drivePageFastForward"; x: 1170; y: 50; width: 182; height: 60; text: "快进 1 分钟"; textSize: 18; enabled: Vehicle.speed>0; onClicked: Vehicle.advanceSimulation(60) }

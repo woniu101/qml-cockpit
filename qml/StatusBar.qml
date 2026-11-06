@@ -69,9 +69,9 @@ Item {
     Rectangle { x: 1493; y: 22; width: 1; height: 20; color: Theme.line }
     UiButton {
         id: avatarButton
-        objectName: "settingsButton"; x: 1512; y: 10; width: 44; height: 44
-        text: "林"; caption: "林先生 · 显示与偏好设置"
-        Accessible.name: "林先生的显示与偏好设置"
+        objectName: "settingsButton"; x: 1505; y: 10; width: 44; height: 44
+        text: shell.profileSurname; caption: shell.profileDisplayName + " · 显示与偏好设置"
+        Accessible.name: shell.profileDisplayName + "的显示与偏好设置"
         onClicked: shell.openPopup("settings")
         background: Item {
             Rectangle {
