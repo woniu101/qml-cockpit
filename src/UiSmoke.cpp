@@ -6,6 +6,7 @@
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QQuickItem>
+#include <QQmlContext>
 #include <QMediaPlayer>
 #include <QMediaDevices>
 #include <QAudioDevice>
@@ -84,9 +85,21 @@ void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,Me
             click("assistantShortcut");
             auto *conversation = item("assistantConversation");
             auto *input = item("assistantText");
+            auto *wake = qmlContext(conversation)->contextProperty("AssistantWake").value<QObject *>();
+            require(wake && !wake->property("preparing").toBool(), "opening assistant manually leaves wake feedback idle");
+            const auto welcome = item("assistantReply")->property("text").toString();
+            require(welcome == QStringLiteral("说出或输入指令") || welcome == QStringLiteral("输入指令"),
+                    "assistant welcome reflects input availability");
             const double dockBottom = conversation->y() + conversation->height();
             capture("01a-assistant-stationary");
             click("assistantSettingsShortcut");
+            click("assistantSection2");
+            auto *wakeFeedback = item("assistantWakeFeedback");
+            require(wakeFeedback->property("currentIndex").toInt() == 0, "wake feedback defaults to a tone");
+            click("assistantWakeFeedback");
+            QTest::keyClick(&window, Qt::Key_End);
+            QTest::keyClick(&window, Qt::Key_Return);
+            wait([&] { return wake->property("feedback").toInt() == 2; }, "wake feedback selection reaches runtime");
             click("assistantSettingsBack");
             require(window.property("popup").toString() == "assistant", "settings return to the originating conversation");
             input->setProperty("text", QStringLiteral("现在还有多少电"));
@@ -104,6 +117,13 @@ void runUiSmoke(QGuiApplication &app,QQuickWindow &window,VehicleState &state,Me
             state.parkVehicle();
             require(input->isVisible(), "stationary assistant restores typing");
             click("assistantShortcut");
+            require(QMetaObject::invokeMethod(wake, "activated") &&
+                    wake->property("preparing").toBool() && window.property("popup").toString() == "assistant",
+                    "voice wake opens the assistant and prepares capture");
+            require(item("assistantReply")->property("text").toString() == QStringLiteral("正在准备收音…"),
+                    "voice wake shows handoff before listening");
+            click("assistantShortcut");
+            require(!wake->property("preparing").toBool(), "closing assistant cancels pending wake capture");
             click("settingsButton");
             click("assistantPreferences");
             click("assistantResetPlayback");

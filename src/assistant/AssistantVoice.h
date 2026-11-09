@@ -62,6 +62,8 @@ public:
     void setSpeed(int value);
     void setReplyMode(const QString &value);
     void reply(const QString &text, bool voiceInput, bool announce = true);
+    QUrl wakePrompt() const { return m_wakePrompt; }
+    void setWakePromptEnabled(bool enabled);
     Q_INVOKABLE void resetPlaybackPreferences();
     Q_INVOKABLE void importReference(const QUrl &url);
     Q_INVOKABLE void preview();
@@ -80,12 +82,15 @@ signals:
     void changed();
     void preferencesChanged();
     void transcriptionRequested(const QUrl &wave);
+    void wakePromptChanged();
 
 private:
     void synthesize(const QString &text, const QString &reference, const QString &transcript, bool preview);
     void complete(const QJsonObject &result);
     void status(const QString &message);
     void applyPlaybackPreferences();
+    void prepareWakePrompt();
+    void cancelWakePromptPreparation();
     AssistantAudioRoute m_route{QAudioDevice::Output};
     AssistantAudioRoute *m_inputRoute = nullptr;
     AssistantAudioClip m_clip;
@@ -104,4 +109,9 @@ private:
     bool m_dirty = false, m_reading = false;
     int m_countdown = 0;
     QString m_previewText = QStringLiteral("右后车窗已调到百分之三十。");
+    QUrl m_wakePrompt;
+    QString m_wakePromptFile;
+    bool m_wakePromptEnabled = false;
+    bool m_wakePromptPreparing = false;
+    bool m_wakePromptAttempted = false;
 };

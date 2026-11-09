@@ -112,6 +112,21 @@ class MediaSessionTests : public QObject {
         QCOMPARE(voice.countdown(), 0);
         QVERIFY(!voice.referenceClip()->recording());
     }
+    void assistantPreparesWakePromptWithoutStartingReply() {
+        AssistantVoice voice;
+        if (!voice.configured() || qEnvironmentVariableIsEmpty("CAR_TERMINAL_TTS_REFERENCE"))
+            QSKIP("Supply the TTS model and reference audio");
+        QSignalSpy ready(&voice, &AssistantVoice::wakePromptChanged);
+        voice.setWakePromptEnabled(true);
+        QVERIFY(!voice.busy());
+        QTRY_COMPARE_WITH_TIMEOUT(ready.size(), 1, 30000);
+        QVERIFY(QFileInfo::exists(voice.wakePrompt().toLocalFile()));
+        QVERIFY(!voice.playing());
+        const auto cached = voice.wakePrompt();
+        voice.setWakePromptEnabled(false);
+        voice.setWakePromptEnabled(true);
+        QCOMPARE(voice.wakePrompt(), cached);
+    }
     void assistantRelativeTargetsUseActualState() {
         VehicleState vehicle;
         AssistantVehicle controls(vehicle);

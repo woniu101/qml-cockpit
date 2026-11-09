@@ -7,6 +7,7 @@
 #include "AssistantVehicle.h"
 #include "AssistantVoice.h"
 #include "AssistantWake.h"
+#include "AssistantWakeFeedback.h"
 
 class QQmlContext;
 
@@ -22,6 +23,7 @@ private:
     AssistantNlu m_nlu;
     AssistantAppearance m_appearance;
     AssistantWake m_wake;
+    AssistantWakeFeedback m_wakeFeedback{m_voice};
     QTimer m_wakeSync;
     QTimer m_followUp;
     QTimer m_wakeCapture;

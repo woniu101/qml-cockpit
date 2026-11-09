@@ -8,6 +8,7 @@ add_library(CockpitInference STATIC
     src/assistant/inference/NativeAudio.cpp src/assistant/inference/NativeAudio.h
     src/assistant/inference/NativeAsr.cpp src/assistant/inference/NativeWake.cpp
     src/assistant/inference/NativeVoice.cpp src/assistant/inference/NativeNlu.cpp
+    src/assistant/inference/VoiceText.cpp src/assistant/inference/VoiceText.h
     src/assistant/inference/BertTokenizer.cpp src/assistant/inference/BertTokenizer.h
     src/assistant/inference/BioDecoder.cpp src/assistant/inference/BioDecoder.h
     src/assistant/inference/NluSlots.cpp src/assistant/inference/NluSlots.h)

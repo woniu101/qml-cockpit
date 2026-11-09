@@ -235,17 +235,56 @@ bool AssistantVoice::save(const QString &transcript) {
     m_referenceText = m_verifiedTranscript;
     m_activeName = m_draftName;
     m_dirty = false;
+    cancelWakePromptPreparation();
+    m_wakePromptAttempted = false;
+    m_wakePrompt = QUrl{};
+    emit wakePromptChanged();
+    prepareWakePrompt();
     status(QStringLiteral("音色已保存，并用于助手回复"));
     return true;
 }
 
 void AssistantVoice::stop() {
     const bool busy = m_busy;
-    m_worker.cancel();
+    if (busy)
+        m_worker.cancel();
     m_busy = false;
     m_player.stop();
     if (busy)
         status(QStringLiteral("已停止本次播报"));
+    if (busy)
+        prepareWakePrompt();
+}
+
+void AssistantVoice::setWakePromptEnabled(bool enabled) {
+    if (m_wakePromptEnabled == enabled)
+        return;
+    m_wakePromptEnabled = enabled;
+    if (enabled) {
+        m_wakePromptAttempted = !m_wakePrompt.isEmpty();
+        prepareWakePrompt();
+    } else {
+        cancelWakePromptPreparation();
+    }
+}
+
+void AssistantVoice::prepareWakePrompt() {
+    if (!m_wakePromptEnabled || m_wakePromptAttempted || m_busy || !configured() ||
+        !QFileInfo(m_reference).isFile() || m_referenceText.isEmpty() || m_referenceText.size() > 300)
+        return;
+    m_wakePromptFile = m_dir.filePath(QStringLiteral("wake-%1.wav").arg(++m_serial));
+    m_wakePromptPreparing = m_worker.submit({{"text", QStringLiteral("我在。")}, {"reference", m_reference},
+                                             {"transcript", m_referenceText}, {"output", m_wakePromptFile},
+                                             {"wakePrompt", true}});
+    m_wakePromptAttempted = m_wakePromptPreparing;
+}
+
+void AssistantVoice::cancelWakePromptPreparation() {
+    if (!m_wakePromptPreparing)
+        return;
+    m_worker.cancel();
+    m_wakePromptPreparing = false;
+    m_wakePromptAttempted = false;
 }
 
 void AssistantVoice::reply(const QString &text, bool voiceInput, bool announce) {
@@ -339,6 +378,7 @@ void AssistantVoice::synthesize(const QString &text, const QString &reference, c
         status(QStringLiteral("请准备参考音频，并填写 1 至 300 字的原文"));
         return;
     }
+    cancelWakePromptPreparation();
     m_player.setSource({});
     if (!m_wave.isEmpty())
         QFile::remove(m_wave);
@@ -353,7 +393,17 @@ void AssistantVoice::synthesize(const QString &text, const QString &reference, c
 }
 
 void AssistantVoice::complete(const QJsonObject &result) {
+    if (m_wakePromptPreparing) {
+        m_wakePromptPreparing = false;
+        const auto seconds = result.value("seconds").toDouble();
+        if (!result.contains("error") && seconds >= 0.1 && seconds <= 1.8 && QFileInfo(m_wakePromptFile).isFile()) {
+            m_wakePrompt = QUrl::fromLocalFile(m_wakePromptFile);
+            emit wakePromptChanged();
+        }
+        return;
+    }
     m_busy = false;
+    prepareWakePrompt();
     if (result.contains("error") || !QFileInfo(m_wave).isFile()) {
         m_failed = true;
         qWarning().noquote() << "Voice synthesis failed:" << result.value("error").toString("Missing output audio");

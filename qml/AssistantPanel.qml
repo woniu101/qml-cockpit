@@ -7,7 +7,7 @@ Item {
     id: panel
     required property var shell
     readonly property bool compact: Vehicle.speed > 0 || (Vehicle.externalMode && !Vehicle.externalReady)
-    readonly property bool working: AssistantSpeech.recording || AssistantSpeech.recognizing || AssistantNlu.busy || Assistant.pending
+    readonly property bool working: AssistantWake.preparing || AssistantSpeech.recording || AssistantSpeech.recognizing || AssistantNlu.busy || Assistant.pending
     readonly property bool speaking: AssistantVoice.playing || AssistantVoice.synthesizing
     readonly property bool candidates: Assistant.choices.length > 0
     readonly property bool followingUp: AssistantNlu.followUpActive
@@ -94,7 +94,7 @@ Item {
                         Layout.fillWidth: true
                         font.pixelSize: 14
                         color: Theme.green
-                        text: AssistantSpeech.recording ? "正在听" : AssistantSpeech.recognizing ? "正在识别"
+                        text: AssistantSpeech.recording ? "正在听" : AssistantWake.preparing ? "语音唤醒" : AssistantSpeech.recognizing ? "正在识别"
                             : AssistantNlu.batchRunning || Assistant.pending ? "正在执行" : AssistantNlu.busy ? "正在理解"
                             : panel.speechError ? "语音输入" : panel.confirming ? "等待确认"
                             : panel.followingUp ? "等待补全" : panel.candidates ? "等你选择" : AssistantVoice.playing ? "正在播报"
@@ -111,9 +111,11 @@ Item {
                         wrapMode: Text.WordWrap
                         textFormat: Text.PlainText
                         text: AssistantSpeech.recording ? (AssistantSpeech.automatic ? "停顿后自动提交" : "说完后点一下结束")
+                            : AssistantWake.preparing ? "正在准备收音…"
                             : AssistantSpeech.recognizing || (AssistantNlu.busy && !AssistantNlu.batchRunning) ? "请稍候…"
                             : panel.speechError || (panel.candidates && !panel.compact ? "你想播放哪一项？" : Assistant.message)
-                              || (panel.compact ? (panel.voiceUnavailable || "点麦克风说话") : "我能帮你做什么？")
+                              || (panel.compact ? (panel.voiceUnavailable || "点麦克风说话")
+                                                : (panel.canRecord ? "说出或输入指令" : "输入指令"))
                     }
                     Label {
                         visible: !panel.compact && panel.welcome && panel.voiceUnavailable !== ""

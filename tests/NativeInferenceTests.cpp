@@ -2,6 +2,7 @@
 #include "assistant/inference/InferenceEngine.h"
 #include "assistant/inference/NativeAudio.h"
 #include "assistant/inference/NluSlots.h"
+#include "assistant/inference/VoiceText.h"
 #include <QCryptographicHash>
 #include <QElapsedTimer>
 #include <QFile>
@@ -9,6 +10,7 @@
 #include <QJsonDocument>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <algorithm>
 
 class NativeInferenceTests : public QObject {
     Q_OBJECT
@@ -151,8 +153,9 @@ class NativeInferenceTests : public QObject {
         const auto result = voice->run(request, cancelled);
         qInfo() << "NATIVE_LONG_TTS" << result << "ms" << timer.elapsed();
         QVERIFY(result["segments"].toInt() >= 5);
-        QVERIFY(result["seconds"].toDouble() > 8);
         auto wave = cockpit::readWave(output, 120);
+        QVERIFY(!wave.samples.empty());
+        QCOMPARE(result["seconds"].toDouble(), double(wave.samples.size()) / wave.rate);
         const auto first =
             wave.samples.size() > size_t(wave.rate * 5) ? wave.samples.size() - wave.rate * 5 : 0;
         const QByteArray tail(reinterpret_cast<const char *>(wave.samples.data() + first),
@@ -163,6 +166,45 @@ class NativeInferenceTests : public QObject {
                                          cancelled);
         qInfo() << "NATIVE_LONG_TTS_TAIL" << recognized;
         QVERIFY(recognized["text"].toString().contains(QStringLiteral("一路")));
+    }
+    void voiceTextReadsNumericValues() {
+        QCOMPARE(cockpit::voiceTextForSynthesis(QStringLiteral("主驾空调已设为 28 度")),
+                 QStringLiteral("主驾空调已设为 二十八 度"));
+        QCOMPARE(cockpit::voiceTextForSynthesis(QStringLiteral("温度22.5度，开度35%，电量100％")),
+                 QStringLiteral("温度二十二点五度，开度百分之三十五，电量百分之一百"));
+        QCOMPARE(cockpit::voiceTextForSynthesis(QStringLiteral("-3.05度，风量0挡，10秒，余量102")),
+                 QStringLiteral("负三点零五度，风量零挡，十秒，余量一百零二"));
+        QCOMPARE(cockpit::voiceTextForSynthesis(QStringLiteral("我在。")), QStringLiteral("我在。"));
+        QCOMPARE(cockpit::voiceTextForSynthesis(QStringLiteral("要设为28度吗？")), QStringLiteral("要设为二十八度吗？"));
+    }
+    void spokenTemperatureIncludesValue() {
+        const auto reference = cockpit::modelResource("defaultReference");
+        if (reference.isEmpty())
+            QSKIP("Supply native model manifest");
+        QFile transcript(cockpit::modelResource("defaultTranscript"));
+        QVERIFY(transcript.open(QIODevice::ReadOnly));
+        QTemporaryDir temporary;
+        const auto output = temporary.filePath("temperature.wav");
+        auto voice = cockpit::makeVoice(cockpit::modelDirectory(cockpit::InferenceKind::Voice));
+        std::atomic_bool cancelled = false;
+        const auto result = voice->run({{"text", QStringLiteral("主驾空调已设为 28 度")},
+                                        {"reference", reference},
+                                        {"transcript", QString::fromUtf8(transcript.readAll()).trimmed()},
+                                        {"output", output}}, cancelled);
+        QVERIFY(!result.contains("error"));
+        const auto audio = cockpit::readWave(output);
+        const auto silenceSamples = size_t(audio.rate * 180 / 1000);
+        QVERIFY(audio.samples.size() > silenceSamples);
+        QVERIFY(std::all_of(audio.samples.end() - silenceSamples, audio.samples.end(),
+                            [](float sample) { return sample == 0; }));
+        QFile wave(output);
+        QVERIFY(wave.open(QIODevice::ReadOnly));
+        auto asr = cockpit::makeAsr(cockpit::modelDirectory(cockpit::InferenceKind::Asr));
+        const auto recognized = asr->run({{"audio", QString::fromLatin1(wave.readAll().toBase64())},
+                                           {"format", QJsonArray{"wav"}}}, cancelled);
+        const auto text = recognized["text"].toString().remove(QChar(u' '));
+        qInfo() << "NATIVE_TEMPERATURE_TTS" << result << recognized;
+        QVERIFY2(text.contains(QStringLiteral("28度")) || text.contains(QStringLiteral("二十八度")), qPrintable(text));
     }
 };
 QTEST_GUILESS_MAIN(NativeInferenceTests)

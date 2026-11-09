@@ -1,8 +1,10 @@
 #include "InferenceEngine.h"
 #include "NativeAudio.h"
+#include "VoiceText.h"
 #include <QDir>
 #include <QRegularExpression>
 #include <sherpa-onnx/c-api/c-api.h>
+#include <algorithm>
 #include <stdexcept>
 
 namespace cockpit {
@@ -56,7 +58,7 @@ class NativeVoice final : public InferenceEngine {
         output.rate = SherpaOnnxOfflineTtsSampleRate(m_tts);
         const QRegularExpression clause(
             QStringLiteral("[^。！？!?；;，,：:\\n]+[。！？!?；;，,：:\\n]*|[。！？!?；;，,：:\\n]+"));
-        auto matches = clause.globalMatch(text);
+        auto matches = clause.globalMatch(voiceTextForSynthesis(text));
         int count = 0;
         while (matches.hasNext()) {
             auto phrase = matches.next().captured();
@@ -85,6 +87,12 @@ class NativeVoice final : public InferenceEngine {
         }
         if (cancelled)
             return {{"error", "cancelled"}};
+        const auto fade = std::min(output.samples.size(), size_t(output.rate * 16 / 1000));
+        auto tail = output.samples.end() - fade;
+        for (size_t i = 0; i < fade; ++i)
+            tail[i] *= float(fade - i - 1) / float(fade);
+        if (!request.value("wakePrompt").toBool())
+            output.samples.resize(output.samples.size() + output.rate * 180 / 1000, 0.0f);
         writeWave(request["output"].toString(), output);
         return {{"seconds", double(output.samples.size()) / output.rate}, {"segments", count}};
     }

@@ -24,7 +24,11 @@ class AssistantWake final : public QObject {
     Q_PROPERTY(QString defaultKeyword READ defaultKeyword CONSTANT)
     Q_PROPERTY(QString message READ message NOTIFY changed)
     Q_PROPERTY(QString testResult READ testResult NOTIFY changed)
+    Q_PROPERTY(Feedback feedback READ feedback WRITE setFeedback NOTIFY feedbackChanged)
+    Q_PROPERTY(bool preparing READ preparing NOTIFY changed)
 public:
+    enum Feedback { Tone, Spoken, Silent };
+    Q_ENUM(Feedback)
     AssistantWake();
     ~AssistantWake() override;
     bool configured() const { return m_worker.configured(); }
@@ -44,6 +48,10 @@ public:
     static QString defaultKeyword() { return QStringLiteral("你好周同学"); }
     QString message() const { return m_message; }
     QString testResult() const { return m_testResult; }
+    Feedback feedback() const { return m_feedback; }
+    void setFeedback(Feedback value);
+    bool preparing() const { return m_preparing; }
+    void setPreparing(bool value);
     void setEnabled(bool value);
     void setSuspended(bool value);
     void setInputRoute(AssistantAudioRoute *route);
@@ -53,6 +61,7 @@ public:
 signals:
     void changed();
     void activated();
+    void feedbackChanged();
 
 private:
     enum class Operation { None, Prepare, Configure, Replay, Feed };
@@ -80,4 +89,6 @@ private:
     int m_stream = 0, m_jobStream = 0;
     bool m_enabled = false, m_suspended = false, m_captureFailed = false, m_bargeIn = false;
     bool m_uiBlocked = false;
+    Feedback m_feedback = Tone;
+    bool m_preparing = false;
 };

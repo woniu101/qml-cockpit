@@ -52,6 +52,11 @@ AssistantRuntime::AssistantRuntime(QQmlContext &context, VehicleState &state, Me
     QObject::connect(&m_wakeSync, &QTimer::timeout, &m_wake, [this] { m_wake.setSuspended(false); });
     m_followUp.setSingleShot(true);
     m_wakeCapture.setSingleShot(true);
+    const auto updateWakePrompt = [this] {
+        m_voice.setWakePromptEnabled(m_wake.feedback() == AssistantWake::Spoken);
+    };
+    QObject::connect(&m_wake, &AssistantWake::feedbackChanged, &m_voice, updateWakePrompt);
+    updateWakePrompt();
     const auto syncWake = [this] {
         const bool processing = m_speech.recording() || m_speech.recognizing() || m_nlu.busy() || m_media.pending()
             || m_voice.referenceClip()->busy() || m_voice.countdown() > 0;
@@ -63,7 +68,7 @@ AssistantRuntime::AssistantRuntime(QQmlContext &context, VehicleState &state, Me
             m_followUp.stop();
         }
         const bool allowInterrupt = m_voice.playing() && !m_voice.previewActive() && m_wake.bargeIn();
-        const bool busy = m_wake.uiBlocked() || processing || m_wakeCapture.isActive()
+        const bool busy = m_wake.uiBlocked() || processing || m_wake.preparing()
             || m_followUp.isActive() || (!quiet && !allowInterrupt);
         if (busy) {
             m_wakeSync.stop();
@@ -77,10 +82,25 @@ AssistantRuntime::AssistantRuntime(QQmlContext &context, VehicleState &state, Me
             m_speech.startAutomatic();
         syncWake();
     });
-    QObject::connect(&m_wakeCapture, &QTimer::timeout, &m_speech, [this, syncWake] {
-        if (m_speech.sessionOpen())
+    const auto startWakeCapture = [this, syncWake] {
+        if (m_wake.preparing() && m_speech.sessionOpen() && !m_wake.uiBlocked())
             m_speech.startAutomatic();
+        m_wake.setPreparing(false);
         syncWake();
+    };
+    QObject::connect(&m_wakeCapture, &QTimer::timeout, &m_speech, [this, startWakeCapture] {
+        if (m_wake.preparing() && m_speech.sessionOpen() && !m_wake.uiBlocked() &&
+            m_speech.configured() && m_speech.inputAvailable() && m_wakeFeedback.play(m_wake.feedback()))
+            return;
+        startWakeCapture();
+    });
+    QObject::connect(&m_wakeFeedback, &AssistantWakeFeedback::finished, &m_speech, startWakeCapture);
+    QObject::connect(&m_speech, &AssistantSpeech::changed, &m_wake, [this] {
+        if (!m_speech.sessionOpen() && m_wake.preparing()) {
+            m_wakeCapture.stop();
+            m_wakeFeedback.cancel();
+            m_wake.setPreparing(false);
+        }
     });
     QObject::connect(&m_speech, &AssistantSpeech::changed, &m_wake, syncWake);
     QObject::connect(&m_nlu, &AssistantNlu::changed, &m_wake, syncWake);
@@ -94,6 +114,7 @@ AssistantRuntime::AssistantRuntime(QQmlContext &context, VehicleState &state, Me
         m_wake.setSuspended(true);
     });
     QObject::connect(&m_wake, &AssistantWake::activated, &m_speech, [this, syncWake] {
+        m_wake.setPreparing(true);
         m_wakeCapture.start(240);
         m_voice.stop();
         if (!m_nlu.followUpActive() && m_media.choices().isEmpty())

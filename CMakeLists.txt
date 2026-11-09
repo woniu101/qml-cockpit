@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(CarTerminal VERSION 0.1 LANGUAGES CXX)
+project(CarTerminal VERSION 0.2.0 LANGUAGES CXX)
 if(MSVC AND CMAKE_CL_SHOWINCLUDES_PREFIX MATCHES "娉|鍖")
     set(CMAKE_CL_SHOWINCLUDES_PREFIX "注意: 包含文件:  ")
 endif()
@@ -39,6 +39,7 @@ set(ASSISTANT_APPEARANCE_SOURCES src/assistant/AssistantAppearance.cpp src/assis
 set(ASSISTANT_WAKE_SOURCES src/assistant/AssistantWake.cpp src/assistant/AssistantWake.h)
 target_sources(CarTerminal PRIVATE ${ASSISTANT_SOURCES} ${ASSISTANT_VEHICLE_SOURCES})
 target_sources(CarTerminal PRIVATE src/assistant/AssistantRuntime.cpp src/assistant/AssistantRuntime.h
+    src/assistant/AssistantWakeFeedback.cpp src/assistant/AssistantWakeFeedback.h
     ${ASSISTANT_NLU_SOURCES}
     src/assistant/AssistantVoice.cpp src/assistant/AssistantVoice.h
     ${ASSISTANT_APPEARANCE_SOURCES} ${ASSISTANT_WAKE_SOURCES})
@@ -70,6 +71,7 @@ file(GLOB_RECURSE UI_RESOURCES CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURC
 list(TRANSFORM UI_RESOURCES PREPEND "assets/ui/")
 qt_add_resources(CarTerminal ui_assets PREFIX "/ui" BASE "assets/ui" FILES ${UI_RESOURCES})
 qt_add_resources(CarTerminal assistant_art PREFIX "/assistant" BASE "design/assistant/assets" FILES design/assistant/assets/character.png)
+qt_add_resources(CarTerminal assistant_audio PREFIX "/assistant" BASE "assets/assistant" FILES assets/assistant/wake-tone.wav)
 file(GLOB_RECURSE CAR_RESOURCES CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/car/meshes/*"
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/car/maps/*"

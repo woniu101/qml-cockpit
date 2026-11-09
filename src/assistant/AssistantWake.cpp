@@ -16,6 +16,11 @@ AssistantWake::AssistantWake()
         m_keyword = settings.value("assistant/wakeKeyword", m_keyword).toString();
         m_enabled = settings.value("assistant/wakeEnabled", false).toBool();
         m_bargeIn = settings.value("assistant/wakeBargeIn", false).toBool();
+        const auto feedback = settings.value("assistant/wakeFeedback").toString();
+        if (feedback == "spoken")
+            m_feedback = Spoken;
+        else if (feedback == "silent")
+            m_feedback = Silent;
     }
     m_message = m_enabled ? QStringLiteral("正在准备离线唤醒") : QStringLiteral("当前使用按键说话");
     m_resume.setSingleShot(true);
@@ -27,6 +32,22 @@ AssistantWake::AssistantWake()
 }
 
 AssistantWake::~AssistantWake() { stopCapture(); }
+
+void AssistantWake::setFeedback(Feedback value) {
+    if (value == m_feedback || value < Tone || value > Silent)
+        return;
+    m_feedback = value;
+    if (!qEnvironmentVariableIsSet("CAR_TERMINAL_NO_SETTINGS"))
+        QSettings().setValue("assistant/wakeFeedback", value == Spoken ? "spoken" : value == Silent ? "silent" : "tone");
+    emit feedbackChanged();
+}
+
+void AssistantWake::setPreparing(bool value) {
+    if (value == m_preparing)
+        return;
+    m_preparing = value;
+    emit changed();
+}
 
 void AssistantWake::setInputRoute(AssistantAudioRoute *route) {
     m_route = route;
