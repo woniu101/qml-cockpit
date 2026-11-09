@@ -17,9 +17,10 @@ if errorlevel 1 exit /b 1
 for %%F in (sherpa-onnx-c-api.dll onnxruntime.dll onnxruntime_providers_shared.dll) do (
     copy /y "build\%%F" "%PACKAGE_DIR%\%%F" >nul || exit /b 1
 )
-"D:\Qt\6.12.0\msvc2022_64\bin\windeployqt.exe" --release --no-translations --qmldir qml --dir "%PACKAGE_DIR%" "%PACKAGE_DIR%\QmlCockpit.exe"
+"D:\Qt\6.12.0\msvc2022_64\bin\windeployqt.exe" --release --no-translations --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --qmldir qml --dir "%PACKAGE_DIR%" "%PACKAGE_DIR%\QmlCockpit.exe"
 if errorlevel 1 exit /b 1
 copy /y "README.md" "%PACKAGE_DIR%\README.md" >nul
+copy /y "LICENSE" "%PACKAGE_DIR%\LICENSE" >nul || exit /b 1
 copy /y "THIRD_PARTY_NOTICES.md" "%PACKAGE_DIR%\THIRD_PARTY_NOTICES.md" >nul
 copy /y "scripts\release-qt.conf" "%PACKAGE_DIR%\qt.conf" >nul
 if not exist "%PACKAGE_DIR%\licenses" mkdir "%PACKAGE_DIR%\licenses"
@@ -30,6 +31,11 @@ copy /y "assets\sedan\source\download.json" "%PACKAGE_DIR%\licenses\Sedan-downlo
 copy /y "assets\sedan\source\parts-rig.json" "%PACKAGE_DIR%\licenses\Sedan-parts-rig.json" >nul
 copy /y "assets\source\CC-BY-4.0.txt" "%PACKAGE_DIR%\licenses\Sedan-CC-BY-4.0.txt" >nul
 xcopy /s /i /y "D:\Qt\Licenses" "%PACKAGE_DIR%\licenses\Qt" >nul || exit /b 1
+xcopy /s /i /y "licenses" "%PACKAGE_DIR%\licenses" >nul || exit /b 1
+mkdir "%PACKAGE_DIR%\licenses\Qt\sbom" || exit /b 1
+for %%M in (qtbase qtdeclarative qtmultimedia qtquick3d qtquicktimeline qtshadertools qtsvg qttasktree) do (
+    copy /y "D:\Qt\6.12.0\msvc2022_64\sbom\%%M-6.12.0.spdx" "%PACKAGE_DIR%\licenses\Qt\sbom\" >nul || exit /b 1
+)
 if not exist "%PACKAGE_DIR%\docs" mkdir "%PACKAGE_DIR%\docs"
 copy /y "design\v2\*.md" "%PACKAGE_DIR%\docs\" >nul
 if not exist "%PACKAGE_DIR%\docs\states" mkdir "%PACKAGE_DIR%\docs\states"

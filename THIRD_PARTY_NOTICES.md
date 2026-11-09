@@ -38,8 +38,17 @@ The original model license metadata and download SHA-256 are preserved in `asset
 
 ## Qt 和媒体组件
 
-座舱助手的原生推理使用 sherpa-onnx 2.0.1（Apache-2.0）和该官方 Windows SDK 随附的 ONNX Runtime（MIT）。源码分别位于 https://github.com/k2-fsa/sherpa-onnx 与 https://github.com/microsoft/onnxruntime 。固定下载地址和 SHA-256 见 `scripts/setup-native-inference.ps1`，本地 SDK 来源记录在 `.deps/assistant-native/sources.json`。ONNX Runtime C 接口按 API 20 调用，使用 SDK 随附的兼容运行库，禁止混用 Python 虚拟环境中的 DLL。
+座舱助手的原生推理使用 [sherpa-onnx 2.0.1](https://github.com/k2-fsa/sherpa-onnx/tree/v2.0.1)（Apache-2.0）和该 Windows SDK 随附的 [ONNX Runtime 1.28.2](https://github.com/microsoft/onnxruntime/tree/v1.28.2)（MIT）。固定下载地址和 SHA-256 见 `scripts/setup-native-inference.ps1`，许可与上游声明位于 `licenses/`。ONNX Runtime C 接口按 API 20 调用。
 
 自定义唤醒词的发音表由导出工具使用 pypinyin（MIT）生成，运行端仅读取导出表。模型权重与词表的许可独立于推理库；模型目录保留其来源和导出记录。程序不分发用户导入的参考音色或媒体文件。
 
-运行时使用 Qt 6.12 模块，以及随 Qt Multimedia 部署的 FFmpeg 组件。相关文件保留原文件名与版权。Qt 本机许可文本位于 `D:\Qt\Licenses`，打包时一并复制到 `licenses/Qt`。各模块的具体许可以对应文本为准。
+## v0.2.0 Windows 便携包对应源码
+
+- 应用源码与构建脚本：[QML Cockpit v0.2.0](https://github.com/woniu101/qml-cockpit/tree/v0.2.0)（GPL-3.0-only）。
+- Qt DLL 和 QML 插件来自 Qt Online Installer 的 6.12.0 MSVC x64 SDK。下载 [Qt 6.12.0 完整源码](https://download.qt.io/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz)，参见 [Qt 构建方法](https://doc.qt.io/qt-6.12/build-sources.html)及[第三方归属](https://doc.qt.io/qt-6.12/licenses-used-in-qt.html)。Qt Quick 3D 采用 GPLv3，其他模块按各自许可。随包提供相关许可及 Qt 模块 SPDX 清单。
+- FFmpeg DLL 来自同一 Qt SDK，版本 9.0.1，采用 LGPL-2.1-or-later。下载 [FFmpeg 9.0.1 源码](https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz)，参见 [Qt 的 Windows 构建方法](https://doc.qt.io/qt-6.12/qtmultimedia-building-ffmpeg-windows.html)。该构建使用 [zlib 1.3.1](https://www.zlib.net/fossils/zlib-1.3.1.tar.gz)，通过 MSVC 构建共享库。FFmpeg DLL 可替换为同 ABI 的自编译版本。
+- 附带的 Microsoft Visual C++ Redistributable 安装程序是独立的 Microsoft 组件，适用其随附条款。
+
+## 实操演示片
+
+视频含《七里香》原曲、MV 片段及模仿音色。项目的源码许可证不改变这些素材各自适用的权利。
