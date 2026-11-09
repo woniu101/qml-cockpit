@@ -23,9 +23,11 @@
 
 ## 实操演示
 
-[![点击封面，在哔哩哔哩观看 QML Cockpit 实操演示](docs/screenshots/demo-cover.jpg)](https://www.bilibili.com/video/BV1ewW46FEaL/)
+https://github.com/user-attachments/assets/ce32dbd2-25b4-4e8e-ae83-a713da0a0295
 
-[在哔哩哔哩观看 82 秒实操演示片](https://www.bilibili.com/video/BV1ewW46FEaL/)。片中展示车窗联调、导航驾驶、充电、语音调温和媒体播放。蓝牙采用拍摄模拟，语音指令通过预录音频输入。
+片中展示车窗联调、导航驾驶、充电、语音调温和媒体播放。蓝牙采用拍摄模拟，语音指令通过预录音频输入。
+
+[在哔哩哔哩观看 82 秒实操演示片](https://www.bilibili.com/video/BV1ewW46FEaL/)
 
 ## 主要功能
 
